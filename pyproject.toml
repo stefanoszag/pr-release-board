@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "pr-release-board"
+version = "0.1.0"
+description = "A lightweight visual board for prioritising and coordinating pull request releases"
+readme = "README.md"
+authors = []
+license = "MIT"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
