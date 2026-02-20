@@ -40,3 +40,6 @@ coverage.xml
 
 # PyPI (credentials)
 .pypirc
+
+# Ignored direcotries
+/PLANNING
