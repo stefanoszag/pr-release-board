@@ -98,18 +98,30 @@ def sync_repo(repo_id: int) -> dict:
             db.session.add(cached)
         updated += 1
 
-    # Mark PRs that were open but not in this fetch as closed
-    closed_query = db.session.query(PullRequestCache).filter(
-        PullRequestCache.repo_id == repo_id,
-        PullRequestCache.is_open.is_(True),
+    # Mark PRs that were open but not in this fetch as closed; set is_merged from GitHub
+    to_close = (
+        db.session.query(PullRequestCache)
+        .filter(
+            PullRequestCache.repo_id == repo_id,
+            PullRequestCache.is_open.is_(True),
+        )
     )
     if seen_numbers:
-        closed_query = closed_query.filter(
+        to_close = to_close.filter(
             PullRequestCache.number.notin_(seen_numbers)
         )
-    closed_query.update(
-        {PullRequestCache.is_open: False}, synchronize_session=False
-    )
+    to_close_list = to_close.all()
+    for cached in to_close_list:
+        try:
+            gh_pr = github_repo.get_pull(cached.number)
+            cached.is_merged = bool(gh_pr.merged)
+        except Exception as e:
+            current_app.logger.warning(
+                "Could not fetch PR #%s for merged status: %s",
+                cached.number,
+                e,
+            )
+        cached.is_open = False
 
     db.session.commit()
     current_app.logger.info(
