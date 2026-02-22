@@ -1,5 +1,7 @@
 """Application factory."""
 
+import os
+
 from flask import Flask
 
 from app.config import Config
@@ -15,9 +17,13 @@ def create_app() -> Flask:
     Returns:
         The configured Flask application instance.
     """
-    app = Flask(__name__)
+    template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
+    app = Flask(__name__, template_folder=template_dir)
     Config.init_app(app)
-    app.config["SQLALCHEMY_DATABASE_URI"] = app.config["DATABASE_URL"]
+    database_url = app.config["DATABASE_URL"]
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        database_url if database_url else "sqlite:///app.db"
+    )
 
     db.init_app(app)
 
@@ -25,10 +31,5 @@ def create_app() -> Flask:
 
     app.register_blueprint(api_bp)
     app.register_blueprint(pages_bp)
-
-    @app.route("/health")
-    def health() -> dict:
-        """Health check for smoke tests and load balancers."""
-        return {"status": "ok"}
 
     return app

@@ -9,9 +9,10 @@ This project uses [Poetry](https://python-poetry.org/) for dependency and enviro
 # Install dependencies and create the virtual environment
 poetry install
 
-# Run commands inside the Poetry environment
-poetry run python your_script.py
+# Run the Flask app (use Poetry so dependencies are available)
+FLASK_APP=app poetry run flask run
 
-# Or activate the shell and work in the venv
+# Or activate the shell and run from there
 poetry shell
+FLASK_APP=app flask run
 ```
