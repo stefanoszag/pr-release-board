@@ -1,5 +1,7 @@
 """JSON API routes."""
 
+import time
+
 from flask import Blueprint, current_app, jsonify
 
 from app.services.github_service import sync_repo
@@ -27,6 +29,9 @@ def sync() -> tuple[dict, int]:
     owner = current_app.config.get("GITHUB_OWNER", "")
     repo_name = current_app.config.get("GITHUB_REPO", "")
     if not token or not owner or not repo_name:
+        current_app.logger.warning(
+            "POST /api/sync rejected: GitHub credentials not configured"
+        )
         return (
             jsonify(
                 {
@@ -37,9 +42,18 @@ def sync() -> tuple[dict, int]:
             400,
         )
     try:
+        start = time.perf_counter()
         result = sync_repo(repo_id=1)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        current_app.logger.info(
+            "POST /api/sync completed: repo=%s, prs_updated=%s, elapsed_ms=%.0f",
+            result["repo"],
+            result["updated"],
+            elapsed_ms,
+        )
         return jsonify(result), 200
     except ValueError as e:
+        current_app.logger.warning("POST /api/sync failed: %s", e)
         if "not found" in str(e).lower():
             return jsonify({"error": str(e)}), 404
         return jsonify({"error": str(e)}), 400

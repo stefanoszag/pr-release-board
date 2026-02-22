@@ -35,16 +35,27 @@ def sync_repo(repo_id: int) -> dict:
     if not token:
         raise ValueError("GITHUB_TOKEN is not set")
 
-    gh = Github(token)
     full_name = f"{repo.owner}/{repo.name}"
+    current_app.logger.info(
+        "Sync starting: repo_id=%s, target=%s, default_branch=%s",
+        repo_id,
+        full_name,
+        repo.default_branch,
+    )
+
+    gh = Github(token)
     github_repo = gh.get_repo(full_name)
     open_pulls = github_repo.get_pulls(state="open", base=repo.default_branch)
+    pr_list = list(open_pulls)
+    current_app.logger.info(
+        "GitHub API: found %s open PR(s) for %s", len(pr_list), full_name
+    )
 
     now_utc = datetime.now(timezone.utc)
     seen_numbers: set[int] = set()
     updated = 0
 
-    for pr in open_pulls:
+    for pr in pr_list:
         seen_numbers.add(pr.number)
         reviews = list(pr.get_reviews())
         approved = any(getattr(r, "state", None) == "APPROVED" for r in reviews)
@@ -101,4 +112,9 @@ def sync_repo(repo_id: int) -> dict:
     )
 
     db.session.commit()
+    current_app.logger.info(
+        "Sync completed: repo=%s, prs_upserted=%s",
+        repo.name,
+        updated,
+    )
     return {"updated": updated, "repo": repo.name}

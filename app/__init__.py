@@ -1,6 +1,8 @@
 """Application factory."""
 
+import logging
 import os
+import sys
 
 from flask import Flask
 
@@ -20,6 +22,13 @@ def create_app() -> Flask:
     template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
     app = Flask(__name__, template_folder=template_dir)
     Config.init_app(app)
+
+    # Ensure app and request logs at INFO are visible (e.g. sync logs, timing)
+    app.logger.setLevel(logging.INFO)
+    if not app.logger.handlers:
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setLevel(logging.INFO)
+        app.logger.addHandler(handler)
     database_url = app.config["DATABASE_URL"]
     app.config["SQLALCHEMY_DATABASE_URI"] = (
         database_url if database_url else "sqlite:///app.db"
