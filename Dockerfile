@@ -17,6 +17,7 @@ COPY migrations ./migrations
 COPY alembic.ini ./
 
 ENV FLASK_APP=app
-EXPOSE 5000
+EXPOSE 5001
 
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+# Run migrations then start the app (port 5001 so logs match host URL)
+CMD ["sh", "-c", "alembic upgrade head && exec flask run --host=0.0.0.0 --port=5001"]

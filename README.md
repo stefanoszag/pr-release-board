@@ -1,50 +1,69 @@
 # pr-release-board
-A lightweight visual board for prioritising and coordinating pull request releases
 
-## Setup
+A lightweight visual board for prioritising and coordinating pull request releases. Sync open PRs from GitHub, see approval status, and manage them in one place.
+
+## What it does
+
+- **Board** (`/`) — Shows the configured repo, a “Sync now” button, and a table of open PRs with title (link), author, approved/not-approved badge, and last sync time.
+- **Sync** — Fetches open PRs from GitHub (for the repo’s default branch), stores them in Postgres, and updates approval status from reviews. Merged or closed PRs are marked accordingly.
+- **API** — `GET /api/health`, `POST /api/sync`, `GET /api/prs` (optional `?approved=true` or `?approved=false`).
+
+Migrations run automatically when the app starts; the repo row is seeded from env if the table is empty.
+
+## Setup (local)
 
 This project uses [Poetry](https://python-poetry.org/) for dependency and environment management.
 
 ```bash
-# Install dependencies and create the virtual environment
 poetry install
-
-# Run the Flask app (use Poetry so dependencies are available)
-FLASK_APP=app poetry run flask run
-
-# Or activate the shell and run from there
-poetry shell
-FLASK_APP=app flask run
+export FLASK_APP=app
+poetry run flask run
 ```
 
-## Run with Docker
+Then open **http://127.0.0.1:5000/** (Flask’s default port when run locally).
+
+## Run with Docker (single container)
+
+Build and run the image. The app listens on port **5001** inside the container.
 
 ```bash
-# Build the image
 docker build -t pr-release-board .
-
-# Run and publish port 5000 (app listens on 0.0.0.0:5000 inside the container)
-docker run -p 5000:5000 --name prb pr-release-board
-
-# If port 5000 is in use on the host, use e.g. 5001:5000 and open http://127.0.0.1:5001/
-docker run -p 5001:5000 --name prb pr-release-board
+docker run -p 5001:5001 --name prb pr-release-board
 ```
 
-Then open **http://127.0.0.1:5000/** (or **http://127.0.0.1:5001/** if you mapped 5001).
+Then open **http://127.0.0.1:5001/**.
 
-If you get connection refused or 403:
+For GitHub sync you must pass env vars, e.g.:
 
-1. **Check the container is running:** `docker ps` — you should see `prb` (or the container ID) with status Up.
-2. **Check Flask is listening on 0.0.0.0:** `docker logs prb` — you should see `Running on http://0.0.0.0:5000/`. If it shows `127.0.0.1`, the image was built before adding `--host=0.0.0.0`; rebuild with `docker build -t pr-release-board .`.
-3. **Try 127.0.0.1:** Some setups (e.g. Rancher Desktop) behave better with **http://127.0.0.1:5000/** than localhost.
-4. **Stop and remove before re-run:** `docker rm -f prb` then run the `docker run` command again.
+```bash
+docker run -p 5001:5001 -e DATABASE_URL=sqlite:///app.db \
+  -e GITHUB_TOKEN=ghp_xxx -e GITHUB_OWNER=your-org -e GITHUB_REPO=your-repo \
+  --name prb pr-release-board
+```
+
+(Without Postgres you get SQLite; for production use Postgres as in Docker Compose below.)
 
 ## Run with Docker Compose (app + Postgres)
 
-Starts the app and a Postgres 16 database; the app waits for the DB to be ready.
+Starts the app and a Postgres 16 database. The app waits for the DB to be ready, runs migrations, then starts. One repo is seeded from env if the `repos` table is empty.
 
 ```bash
+# Option A: set env in the shell
+export GITHUB_TOKEN=ghp_xxx
+export GITHUB_OWNER=your-org
+export GITHUB_REPO=your-repo
+docker-compose up --build
+
+# Option B: use a .env file in the project root (add .env to .gitignore)
 docker-compose up --build
 ```
 
-Then open **http://127.0.0.1:5000/** (or **http://127.0.0.1:5001/** if you changed the port in `docker-compose.yml`). Set `GITHUB_TOKEN`, `GITHUB_OWNER`, and `GITHUB_REPO` in the `web` service environment when you use GitHub features. There are no database models yet (Phase 1); once you add models and a migration in Phase 2, run `docker-compose exec web alembic upgrade head` to create tables.
+Then open **http://127.0.0.1:5001/**.
+
+**Required for sync:** `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`. Optional: `DEFAULT_BRANCH` (default `main`).
+
+### Troubleshooting
+
+- **Connection refused or 403:** Try **http://127.0.0.1:5001/** (not localhost). Ensure the container is up: `docker ps`; check logs: `docker-compose logs web`.
+- **Re-run:** `docker-compose down` then `docker-compose up --build`.
+- **Single-container Docker:** After `docker run`, stop with `docker rm -f prb` before running again.

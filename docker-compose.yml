@@ -1,5 +1,5 @@
 # Phase 1: app + Postgres. Run: docker-compose up --build
-# Then open http://127.0.0.1:5000/ (or http://127.0.0.1:5001/ if 5000 is in use)
+# Then open http://127.0.0.1:5001/ (host 5001 avoids 403 on some Docker setups)
 
 services:
   db:
@@ -26,13 +26,13 @@ services:
     environment:
       FLASK_APP: app
       DATABASE_URL: postgresql://prboard:prboard@db:5432/prboard
-      GITHUB_TOKEN: ""
-      GITHUB_OWNER: ""
-      GITHUB_REPO: ""
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GITHUB_OWNER: ${GITHUB_OWNER}
+      GITHUB_REPO: ${GITHUB_REPO}
       DEFAULT_BRANCH: main
       SYNC_INTERVAL_MINUTES: "5"
     ports:
-      - "5000:5000"
+      - "5001:5001"
 
 volumes:
   postgres_data:

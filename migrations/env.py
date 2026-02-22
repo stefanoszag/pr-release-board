@@ -8,6 +8,10 @@ from alembic import context
 
 from app.extensions import db
 
+# Import models so their tables are in db.metadata for autogenerate
+from app.models.pull_request import PullRequestCache  # noqa: F401
+from app.models.repo import Repo  # noqa: F401
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
