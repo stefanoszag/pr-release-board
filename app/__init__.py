@@ -27,6 +27,11 @@ def create_app() -> Flask:
 
     db.init_app(app)
 
+    with app.app_context():
+        from app.models.repo import seed_repo
+
+        seed_repo()
+
     scheduler.start()
 
     app.register_blueprint(api_bp)
