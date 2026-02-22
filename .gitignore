@@ -41,5 +41,5 @@ coverage.xml
 # PyPI (credentials)
 .pypirc
 
-# Ignored direcotries
+# Ignored directories
 /PLANNING
