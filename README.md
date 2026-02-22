@@ -38,3 +38,13 @@ If you get connection refused or 403:
 2. **Check Flask is listening on 0.0.0.0:** `docker logs prb` — you should see `Running on http://0.0.0.0:5000/`. If it shows `127.0.0.1`, the image was built before adding `--host=0.0.0.0`; rebuild with `docker build -t pr-release-board .`.
 3. **Try 127.0.0.1:** Some setups (e.g. Rancher Desktop) behave better with **http://127.0.0.1:5000/** than localhost.
 4. **Stop and remove before re-run:** `docker rm -f prb` then run the `docker run` command again.
+
+## Run with Docker Compose (app + Postgres)
+
+Starts the app and a Postgres 16 database; the app waits for the DB to be ready.
+
+```bash
+docker-compose up --build
+```
+
+Then open **http://127.0.0.1:5000/** (or **http://127.0.0.1:5001/** if you changed the port in `docker-compose.yml`). Set `GITHUB_TOKEN`, `GITHUB_OWNER`, and `GITHUB_REPO` in the `web` service environment when you use GitHub features. There are no database models yet (Phase 1); once you add models and a migration in Phase 2, run `docker-compose exec web alembic upgrade head` to create tables.
