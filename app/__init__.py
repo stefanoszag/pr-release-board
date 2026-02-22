@@ -34,7 +34,7 @@ def create_app() -> Flask:
 
     scheduler.start()
 
-    app.register_blueprint(api_bp)
+    app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(pages_bp)
 
     return app
