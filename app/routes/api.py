@@ -6,6 +6,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
+from app.models.queue_item import QueueItem
 from app.services.github_service import sync_repo
 from app.services.queue_service import (
     add_to_queue,
@@ -30,19 +31,16 @@ def list_prs() -> tuple[list, int]:
 
     Optional query params:
       approved: "true" or "false" to filter by approval status.
-      in_queue: ignored in Phase 2 (no queue table yet).
+      in_queue: "true" = only PRs in repo 1's queue; "false" = only PRs not in queue.
 
     Returns:
       200 with list of PR objects: number, title, url, author, base_branch,
       approved, synced_at (ISO 8601).
     """
     start = time.perf_counter()
+    repo_id = 1
     approved_param = request.args.get("approved", "").lower()
     in_queue_param = request.args.get("in_queue", "").lower()
-    if in_queue_param:
-        current_app.logger.debug(
-            "GET /api/prs: in_queue=%s ignored (Phase 2)", in_queue_param
-        )
 
     query = db.session.query(PullRequestCache).filter(
         PullRequestCache.is_open.is_(True)
@@ -51,6 +49,24 @@ def list_prs() -> tuple[list, int]:
         query = query.filter(PullRequestCache.approved.is_(True))
     elif approved_param == "false":
         query = query.filter(PullRequestCache.approved.is_(False))
+
+    if in_queue_param == "true":
+        queue_pr_numbers = db.session.query(QueueItem.pr_number).filter(
+            QueueItem.repo_id == repo_id
+        )
+        query = query.filter(
+            PullRequestCache.repo_id == repo_id,
+            PullRequestCache.number.in_(queue_pr_numbers),
+        )
+    elif in_queue_param == "false":
+        queue_pr_numbers = db.session.query(QueueItem.pr_number).filter(
+            QueueItem.repo_id == repo_id
+        )
+        query = query.filter(
+            PullRequestCache.repo_id == repo_id,
+            PullRequestCache.number.notin_(queue_pr_numbers),
+        )
+
     query = query.order_by(
         PullRequestCache.approved.desc(), PullRequestCache.number.asc()
     )
@@ -77,9 +93,10 @@ def list_prs() -> tuple[list, int]:
 
     elapsed_ms = (time.perf_counter() - start) * 1000
     current_app.logger.info(
-        "GET /api/prs: count=%s, approved_filter=%s, elapsed_ms=%.0f",
+        "GET /api/prs: count=%s, approved=%s, in_queue=%s, elapsed_ms=%.0f",
         len(out),
         approved_param or "none",
+        in_queue_param or "none",
         elapsed_ms,
     )
     return jsonify(out), 200
