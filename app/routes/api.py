@@ -7,6 +7,12 @@ from flask import Blueprint, current_app, jsonify, request
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
 from app.services.github_service import sync_repo
+from app.services.queue_service import (
+    add_to_queue,
+    get_queue,
+    remove_from_queue,
+    update_note,
+)
 
 api_bp = Blueprint("api", __name__)
 
@@ -77,6 +83,138 @@ def list_prs() -> tuple[list, int]:
         elapsed_ms,
     )
     return jsonify(out), 200
+
+
+@api_bp.route("/queue")
+def queue_list() -> tuple[list, int]:
+    """
+    Return the queue for repo_id=1 with PR metadata.
+
+    Returns:
+        200 with list of queue item dicts (position, pr_number, note, title,
+        url, author, approved, synced_at).
+    """
+    start = time.perf_counter()
+    repo_id = 1
+    items = get_queue(repo_id=repo_id)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    current_app.logger.info(
+        "GET /api/queue: count=%s, elapsed_ms=%.0f", len(items), elapsed_ms
+    )
+    return jsonify(items), 200
+
+
+@api_bp.route("/queue/add", methods=["POST"])
+def queue_add() -> tuple[dict, int]:
+    """
+    Add a PR to the queue for repo_id=1.
+
+    Body: {"pr_number": int, "note": "optional string"} (JSON).
+
+    Returns:
+        201 with the new queue item dict.
+        400 if PR not open, not approved, or already in queue.
+    """
+    data = request.get_json(silent=True) or {}
+    pr_number = data.get("pr_number")
+    if pr_number is None:
+        return jsonify({"error": "pr_number is required"}), 400
+    try:
+        pr_number = int(pr_number)
+    except (TypeError, ValueError):
+        return jsonify({"error": "pr_number must be an integer"}), 400
+    note = data.get("note", "") or ""
+    if not isinstance(note, str):
+        note = str(note)
+
+    repo_id = 1
+    try:
+        add_to_queue(repo_id=repo_id, pr_number=pr_number, note=note)
+    except ValueError as e:
+        current_app.logger.warning("POST /api/queue/add failed: %s", e)
+        return jsonify({"error": str(e)}), 400
+
+    items = get_queue(repo_id=repo_id)
+    added = next((q for q in items if q["pr_number"] == pr_number), None)
+    if not added:
+        return jsonify({"error": "Queue item not found after add"}), 500
+    current_app.logger.info(
+        "POST /api/queue/add: pr_number=%s, new_position=%s",
+        pr_number,
+        added["position"],
+    )
+    return jsonify(added), 201
+
+
+@api_bp.route("/queue/remove", methods=["POST"])
+def queue_remove() -> tuple[dict, int]:
+    """
+    Remove a PR from the queue for repo_id=1.
+
+    Body: {"pr_number": int} (JSON).
+
+    Returns:
+        200 with {"removed": true}.
+        404 if PR not in queue.
+    """
+    data = request.get_json(silent=True) or {}
+    pr_number = data.get("pr_number")
+    if pr_number is None:
+        return jsonify({"error": "pr_number is required"}), 400
+    try:
+        pr_number = int(pr_number)
+    except (TypeError, ValueError):
+        return jsonify({"error": "pr_number must be an integer"}), 400
+
+    repo_id = 1
+    try:
+        remove_from_queue(repo_id=repo_id, pr_number=pr_number)
+    except ValueError as e:
+        current_app.logger.warning("POST /api/queue/remove failed: %s", e)
+        return jsonify({"error": str(e)}), 404
+
+    current_app.logger.info("POST /api/queue/remove: pr_number=%s", pr_number)
+    return jsonify({"removed": True}), 200
+
+
+@api_bp.route("/queue/note", methods=["POST"])
+def queue_note() -> tuple[dict, int]:
+    """
+    Update the note for a queued PR (repo_id=1).
+
+    Body: {"pr_number": int, "note": "..."} (JSON).
+
+    Returns:
+        200 with updated queue item dict.
+        404 if PR not in queue.
+    """
+    data = request.get_json(silent=True) or {}
+    pr_number = data.get("pr_number")
+    if pr_number is None:
+        return jsonify({"error": "pr_number is required"}), 400
+    try:
+        pr_number = int(pr_number)
+    except (TypeError, ValueError):
+        return jsonify({"error": "pr_number must be an integer"}), 400
+    note = data.get("note", "") or ""
+    if not isinstance(note, str):
+        note = str(note)
+
+    repo_id = 1
+    try:
+        update_note(repo_id=repo_id, pr_number=pr_number, note=note)
+    except ValueError as e:
+        current_app.logger.warning("POST /api/queue/note failed: %s", e)
+        return jsonify({"error": str(e)}), 404
+
+    items = get_queue(repo_id=repo_id)
+    updated = next((q for q in items if q["pr_number"] == pr_number), None)
+    if not updated:
+        return jsonify({"error": "Queue item not found after update"}), 500
+    current_app.logger.info(
+        "POST /api/queue/note: pr_number=%s, note=%s", pr_number, note[:50]
+    )
+    return jsonify(updated), 200
 
 
 @api_bp.route("/sync", methods=["POST"])
