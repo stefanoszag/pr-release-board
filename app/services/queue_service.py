@@ -201,6 +201,51 @@ def reorder_queue(repo_id: int, ordered_pr_numbers: list[int]) -> None:
     db.session.commit()
 
 
+def cleanup_closed_prs(repo_id: int, open_pr_numbers: set[int]) -> list[int]:
+    """
+    Remove queued PRs whose PR number is not in the set of open PRs.
+
+    For each removed item a ``sync_removed`` event is logged. Remaining items
+    are renumbered 1..N in their current position order. All changes are
+    committed in a single transaction.
+
+    Args:
+        repo_id: Primary key of the Repo.
+        open_pr_numbers: Set of PR numbers that are currently open on GitHub.
+
+    Returns:
+        List of PR numbers that were removed from the queue.
+    """
+    items = (
+        db.session.query(QueueItem)
+        .filter_by(repo_id=repo_id)
+        .order_by(QueueItem.position.asc())
+        .all()
+    )
+
+    removed: list[int] = []
+    for item in items:
+        if item.pr_number not in open_pr_numbers:
+            _log_event(repo_id, item.pr_number, "sync_removed", {"reason": "pr_closed"})
+            db.session.delete(item)
+            removed.append(item.pr_number)
+
+    db.session.flush()
+
+    remaining = (
+        db.session.query(QueueItem)
+        .filter_by(repo_id=repo_id)
+        .order_by(QueueItem.position.asc())
+        .all()
+    )
+    for idx, qi in enumerate(remaining, start=1):
+        if qi.position != idx:
+            qi.position = idx
+
+    db.session.commit()
+    return removed
+
+
 def get_queue(repo_id: int) -> list[dict]:
     """
     Return the queue for the given repo with PR metadata.

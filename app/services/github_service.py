@@ -8,6 +8,7 @@ from github import Github
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
 from app.models.repo import Repo
+from app.services.queue_service import cleanup_closed_prs
 
 
 def sync_repo(repo_id: int) -> dict:
@@ -129,4 +130,11 @@ def sync_repo(repo_id: int) -> dict:
         repo.name,
         updated,
     )
+
+    removed = cleanup_closed_prs(repo_id=repo_id, open_pr_numbers=seen_numbers)
+    if removed:
+        current_app.logger.info(
+            "Sync cleanup: removed %s PR(s) from queue: %s", len(removed), removed
+        )
+
     return {"updated": updated, "repo": repo.name}

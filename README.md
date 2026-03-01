@@ -1,14 +1,49 @@
 # pr-release-board
 
-A lightweight visual board for prioritising and coordinating pull request releases. Sync open PRs from GitHub, see approval status, and manage them in one place.
+A lightweight visual board for prioritising and coordinating pull request releases. Sync open PRs from GitHub, manage a release queue with drag-and-drop reordering, and track all queue activity in an event log.
 
 ## What it does
 
-- **Board** (`/`) — Shows the configured repo, a “Sync now” button, and a table of open PRs with title (link), author, approved/not-approved badge, and last sync time.
-- **Sync** — Fetches open PRs from GitHub (for the repo’s default branch), stores them in Postgres, and updates approval status from reviews. Merged or closed PRs are marked accordingly.
-- **API** — `GET /api/health`, `POST /api/sync`, `GET /api/prs` (optional `?approved=true` or `?approved=false`).
+- **Board** (`/`) — Shows open PRs for the configured repo with title (link), author, and approved / not-approved badge. PRs can be added to, removed from, and reordered in a release queue via drag-and-drop. A "Sync now" button fetches the latest state from GitHub; the last sync timestamp is shown next to the button.
+- **Release queue** — Approved PRs can be queued for release. Items are ordered by drag-and-drop (position 1 = next to release). Each queued PR can carry a free-text note. Closed or merged PRs are automatically removed from the queue on the next sync.
+- **Activity log** (`/activity`) — Chronological log of all queue events: `added`, `removed`, `moved`, `note_updated`, and `sync_removed` (auto-removed by background sync).
+- **Background auto-sync** — APScheduler runs a sync automatically every `SYNC_INTERVAL_MINUTES` minutes (when `GITHUB_TOKEN` is set). No manual action required for the board to stay up-to-date.
+- **Sync cleanup** — After each sync, any queued PR that is no longer open on GitHub is removed from the queue and a `sync_removed` event is written to the activity log.
 
 Migrations run automatically when the app starts; the repo row is seeded from env if the table is empty.
+
+## Pages
+
+| Path | Description |
+|------|-------------|
+| `/` | Board — open PRs, release queue, sync controls |
+| `/activity` | Activity log — full event history |
+
+## API surface
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/health` | Liveness check |
+| `GET` | `/api/last-sync` | Current last-sync timestamp (for board label refresh) |
+| `POST` | `/api/sync` | Trigger a manual sync |
+| `GET` | `/api/prs` | List cached PRs (`?approved=true/false`) |
+| `GET` | `/api/queue` | List current queue items |
+| `POST` | `/api/queue` | Add a PR to the queue |
+| `DELETE` | `/api/queue/<pr_number>` | Remove a PR from the queue |
+| `PUT` | `/api/queue/reorder` | Reorder the queue |
+| `PUT` | `/api/queue/<pr_number>/note` | Update the note for a queued PR |
+| `GET` | `/api/activity` | List queue events |
+
+## Environment variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GITHUB_TOKEN` | Yes (for sync) | — | GitHub personal access token |
+| `GITHUB_OWNER` | Yes (for sync) | — | GitHub organisation or user name |
+| `GITHUB_REPO` | Yes (for sync) | — | Repository name (without owner) |
+| `DEFAULT_BRANCH` | No | `main` | Base branch to filter open PRs against |
+| `DATABASE_URL` | No | `sqlite:///app.db` | SQLAlchemy-compatible database URL |
+| `SYNC_INTERVAL_MINUTES` | No | `5` | How often the background sync runs (minutes) |
 
 ## Setup (local)
 
@@ -20,32 +55,11 @@ export FLASK_APP=app
 poetry run flask run
 ```
 
-Then open **http://127.0.0.1:5000/** (Flask’s default port when run locally).
+Then open **http://127.0.0.1:5000/**.
 
-## Run with Docker (single container)
+## Run with Docker Compose (app + Postgres) — recommended
 
-Build and run the image. The app listens on port **5001** inside the container.
-
-```bash
-docker build -t pr-release-board .
-docker run -p 5001:5001 --name prb pr-release-board
-```
-
-Then open **http://127.0.0.1:5001/**.
-
-For GitHub sync you must pass env vars, e.g.:
-
-```bash
-docker run -p 5001:5001 -e DATABASE_URL=sqlite:///app.db \
-  -e GITHUB_TOKEN=ghp_xxx -e GITHUB_OWNER=your-org -e GITHUB_REPO=your-repo \
-  --name prb pr-release-board
-```
-
-(Without Postgres you get SQLite; for production use Postgres as in Docker Compose below.)
-
-## Run with Docker Compose (app + Postgres)
-
-Starts the app and a Postgres 16 database. The app waits for the DB to be ready, runs migrations, then starts. One repo is seeded from env if the `repos` table is empty.
+Starts the app and a Postgres 16 database. The app waits for the DB to be ready, runs migrations, then starts. One repo is seeded from env if the `repos` table is empty. Background sync starts automatically.
 
 ```bash
 # Option A: set env in the shell
@@ -60,10 +74,21 @@ docker-compose up --build
 
 Then open **http://127.0.0.1:5001/**.
 
-**Required for sync:** `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`. Optional: `DEFAULT_BRANCH` (default `main`).
+## Run with Docker (single container)
+
+```bash
+docker build -t pr-release-board .
+docker run -p 5001:5001 \
+  -e GITHUB_TOKEN=ghp_xxx \
+  -e GITHUB_OWNER=your-org \
+  -e GITHUB_REPO=your-repo \
+  --name prb pr-release-board
+```
+
+Without a `DATABASE_URL` the app falls back to SQLite inside the container (state is lost on restart).
 
 ### Troubleshooting
 
-- **Connection refused or 403:** Try **http://127.0.0.1:5001/** (not localhost). Ensure the container is up: `docker ps`; check logs: `docker-compose logs web`.
+- **Connection refused or 403:** Try **http://127.0.0.1:5001/** (not `localhost`). Ensure the container is up: `docker ps`; check logs: `docker-compose logs web`.
 - **Re-run:** `docker-compose down` then `docker-compose up --build`.
 - **Single-container Docker:** After `docker run`, stop with `docker rm -f prb` before running again.
