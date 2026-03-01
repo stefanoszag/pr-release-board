@@ -25,6 +25,36 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@api_bp.route("/last-sync")
+def last_sync() -> tuple[dict, int]:
+    """
+    Return the most recent sync timestamp for the board (repo_id=1).
+
+    Used by the board page to refresh the "Last sync" label when background
+    sync runs, without a full page reload.
+
+    Returns:
+        200 with {"last_sync": "ISO8601" | null}.
+    """
+    repo_id = 1
+    open_prs = (
+        db.session.query(PullRequestCache)
+        .filter(
+            PullRequestCache.repo_id == repo_id,
+            PullRequestCache.is_open.is_(True),
+        )
+        .all()
+    )
+    last = None
+    if open_prs:
+        last = max(
+            (p.synced_at for p in open_prs if p.synced_at),
+            default=None,
+        )
+    last_str = last.isoformat().replace("+00:00", "Z") if last else None
+    return jsonify({"last_sync": last_str}), 200
+
+
 @api_bp.route("/prs")
 def list_prs() -> tuple[list, int]:
     """

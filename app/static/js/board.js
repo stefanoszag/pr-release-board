@@ -49,6 +49,41 @@
     });
   }
 
+  // Poll last-sync so the label updates after background sync (no reload)
+  var lastSyncLabel = document.getElementById("last-sync-label");
+  if (lastSyncLabel) {
+    var POLL_INTERVAL_MS = 60 * 1000; // 1 minute
+    function updateLastSyncLabel() {
+      fetch("/api/last-sync", { headers: { Accept: "application/json" } })
+        .then(parseJsonResponse)
+        .then(function (result) {
+          if (result.ok && result.data && result.data.last_sync) {
+            var iso = result.data.last_sync;
+            var d = new Date(iso);
+            if (!isNaN(d.getTime())) {
+              var formatted =
+                d.getUTCFullYear() +
+                "-" +
+                String(d.getUTCMonth() + 1).padStart(2, "0") +
+                "-" +
+                String(d.getUTCDate()).padStart(2, "0") +
+                " " +
+                String(d.getUTCHours()).padStart(2, "0") +
+                ":" +
+                String(d.getUTCMinutes()).padStart(2, "0") +
+                " UTC";
+              lastSyncLabel.textContent = "Last sync: " + formatted;
+            }
+          } else if (result.ok && result.data && result.data.last_sync === null) {
+            lastSyncLabel.textContent = "No PRs cached — click Sync now.";
+          }
+        })
+        .catch(function () {});
+    }
+    setInterval(updateLastSyncLabel, POLL_INTERVAL_MS);
+    setTimeout(updateLastSyncLabel, 5000); // refresh once soon after load
+  }
+
   // Add to queue
   document.querySelectorAll(".queue-add").forEach(function (btn) {
     btn.addEventListener("click", function () {

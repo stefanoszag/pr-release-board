@@ -18,7 +18,7 @@
     >
       Sync now
     </button>
-    <span class="text-sm text-gray-500">
+    <span class="text-sm text-gray-500" id="last-sync-label">
       {% if last_sync %}
         Last sync: {{ last_sync.strftime('%Y-%m-%d %H:%M UTC') }}
       {% else %}
