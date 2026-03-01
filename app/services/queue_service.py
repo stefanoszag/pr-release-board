@@ -2,7 +2,36 @@
 
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
+from app.models.queue_event import QueueEvent
 from app.models.queue_item import QueueItem
+
+
+def _log_event(
+    repo_id: int,
+    pr_number: int,
+    event_type: str,
+    payload: dict | None = None,
+) -> None:
+    """
+    Append a queue event to the session and flush (no commit).
+
+    Caller is responsible for committing so the event is written atomically
+    with the corresponding data change.
+
+    Args:
+        repo_id: Primary key of the Repo.
+        pr_number: GitHub PR number.
+        event_type: One of added, removed, moved, note_updated, sync_removed.
+        payload: Optional JSON context for the event.
+    """
+    event = QueueEvent(
+        repo_id=repo_id,
+        pr_number=pr_number,
+        event_type=event_type,
+        payload=payload,
+    )
+    db.session.add(event)
+    db.session.flush()
 
 
 def add_to_queue(repo_id: int, pr_number: int, note: str = "") -> QueueItem:
@@ -55,6 +84,7 @@ def add_to_queue(repo_id: int, pr_number: int, note: str = "") -> QueueItem:
         note=note.strip() if note else None,
     )
     db.session.add(item)
+    _log_event(repo_id, pr_number, "added", {"position": next_position})
     db.session.commit()
     db.session.refresh(item)
     return item
@@ -80,6 +110,7 @@ def remove_from_queue(repo_id: int, pr_number: int) -> None:
         raise ValueError("PR not in queue")
 
     old_position = item.position
+    _log_event(repo_id, pr_number, "removed", {"position": old_position})
     db.session.delete(item)
     db.session.commit()
 
@@ -119,10 +150,55 @@ def update_note(repo_id: int, pr_number: int, note: str) -> QueueItem:
     if item is None:
         raise ValueError("PR not in queue")
 
-    item.note = note.strip() if note else None
+    note_value = note.strip() if note else None
+    item.note = note_value
+    _log_event(repo_id, pr_number, "note_updated", {"note": note_value})
     db.session.commit()
     db.session.refresh(item)
     return item
+
+
+def reorder_queue(repo_id: int, ordered_pr_numbers: list[int]) -> None:
+    """
+    Reorder the queue to match the given list of PR numbers.
+
+    The submitted list must contain exactly the same set of PR numbers as
+    currently in the queue (no missing or extra items).
+
+    Args:
+        repo_id: Primary key of the Repo.
+        ordered_pr_numbers: PR numbers in the desired order (positions 1..N).
+
+    Raises:
+        ValueError: If the list does not match the current set of queued PRs.
+    """
+    items = (
+        db.session.query(QueueItem)
+        .filter_by(repo_id=repo_id)
+        .order_by(QueueItem.position.asc())
+        .all()
+    )
+    current_prs = {item.pr_number for item in items}
+    submitted = set(ordered_pr_numbers)
+    if current_prs != submitted:
+        raise ValueError("ordered_pr_numbers must match current queue (no missing or extra items)")
+
+    before_positions = {item.pr_number: item.position for item in items}
+    pr_to_item = {item.pr_number: item for item in items}
+
+    for new_position, pr_number in enumerate(ordered_pr_numbers, start=1):
+        item = pr_to_item[pr_number]
+        old_position = before_positions[pr_number]
+        if old_position != new_position:
+            _log_event(
+                repo_id,
+                pr_number,
+                "moved",
+                {"from_position": old_position, "to_position": new_position},
+            )
+        item.position = new_position
+
+    db.session.commit()
 
 
 def get_queue(repo_id: int) -> list[dict]:
