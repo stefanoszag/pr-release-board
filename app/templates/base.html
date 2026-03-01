@@ -7,11 +7,15 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
-  <nav class="bg-white border-b border-gray-200 px-4 py-3">
-    <span class="text-gray-600">PR Release Board</span>
+  <nav class="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-4">
+    <a href="/" class="text-gray-600 hover:text-gray-900">PR Release Board</a>
+    <a href="/activity" class="text-gray-600 hover:text-gray-900">Activity</a>
   </nav>
   <main class="container mx-auto px-4 py-6">
     {% block content %}{% endblock %}
   </main>
+  {% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  {% endblock %}
 </body>
 </html>

@@ -11,6 +11,7 @@ from app.services.github_service import sync_repo
 from app.services.queue_service import (
     add_to_queue,
     get_queue,
+    reorder_queue,
     remove_from_queue,
     update_note,
 )
@@ -232,6 +233,43 @@ def queue_note() -> tuple[dict, int]:
         "POST /api/queue/note: pr_number=%s, note=%s", pr_number, note[:50]
     )
     return jsonify(updated), 200
+
+
+@api_bp.route("/queue/reorder", methods=["POST"])
+def queue_reorder() -> tuple[dict, int]:
+    """
+    Reorder the queue for repo_id=1 to match the given PR number list.
+
+    Body: {"ordered_pr_numbers": [123, 456, ...]} (JSON).
+
+    Returns:
+        200 with {"reordered": true}.
+        400 if body is invalid or ordered list does not match current queue.
+    """
+    start = time.perf_counter()
+    data = request.get_json(silent=True) or {}
+    ordered_pr_numbers = data.get("ordered_pr_numbers")
+    if ordered_pr_numbers is None:
+        return jsonify({"error": "ordered_pr_numbers is required"}), 400
+    if not isinstance(ordered_pr_numbers, list):
+        return jsonify({"error": "ordered_pr_numbers must be a list"}), 400
+    if not all(isinstance(x, int) for x in ordered_pr_numbers):
+        return jsonify({"error": "ordered_pr_numbers must contain only integers"}), 400
+
+    repo_id = 1
+    try:
+        reorder_queue(repo_id=repo_id, ordered_pr_numbers=ordered_pr_numbers)
+    except ValueError as e:
+        current_app.logger.warning("POST /api/queue/reorder failed: %s", e)
+        return jsonify({"error": str(e)}), 400
+
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    current_app.logger.info(
+        "POST /api/queue/reorder: count=%s, elapsed_ms=%.0f",
+        len(ordered_pr_numbers),
+        elapsed_ms,
+    )
+    return jsonify({"reordered": True}), 200
 
 
 @api_bp.route("/sync", methods=["POST"])

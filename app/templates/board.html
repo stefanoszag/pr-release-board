@@ -39,6 +39,7 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
+            <th scope="col" class="w-8 px-2 py-3"></th>
             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR</th>
             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
@@ -47,9 +48,12 @@
             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody id="queue-tbody" class="bg-white divide-y divide-gray-200">
           {% for pr in queued_prs %}
           <tr data-pr-number="{{ pr.pr_number }}">
+            <td class="px-2 py-3">
+              <span class="drag-handle cursor-move text-gray-400 select-none">⠿</span>
+            </td>
             <td class="px-4 py-3 text-gray-700">{{ pr.position }}</td>
             <td class="px-4 py-3">
               <a href="{{ pr.url or '#' }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">
@@ -182,110 +186,9 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
-<script>
-(function() {
-  var syncBtn = document.getElementById('sync-btn');
-  if (syncBtn) {
-    syncBtn.addEventListener('click', function() {
-      syncBtn.disabled = true;
-      syncBtn.textContent = 'Syncing…';
-      fetch('/api/sync', { method: 'POST', headers: { 'Accept': 'application/json' } })
-        .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
-        .then(function(result) {
-          if (result.ok) {
-            window.location.reload();
-          } else {
-            syncBtn.disabled = false;
-            syncBtn.textContent = 'Sync now';
-            alert(result.data.error || 'Sync failed');
-          }
-        })
-        .catch(function(err) {
-          syncBtn.disabled = false;
-          syncBtn.textContent = 'Sync now';
-          alert('Sync failed: ' + (err.message || 'network error'));
-        });
-    });
-  }
-
-  function postJson(url, body) {
-    return fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(body)
-    });
-  }
-
-  document.querySelectorAll('.queue-add').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var prNumber = parseInt(btn.getAttribute('data-pr-number'), 10);
-      postJson('/api/queue/add', { pr_number: prNumber })
-        .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
-        .then(function(result) {
-          if (result.ok) {
-            window.location.reload();
-          } else {
-            alert(result.data.error || 'Failed to add to queue');
-          }
-        })
-        .catch(function(err) {
-          alert('Failed: ' + (err.message || 'network error'));
-        });
-    });
-  });
-
-  document.querySelectorAll('.queue-remove').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var prNumber = parseInt(btn.getAttribute('data-pr-number'), 10);
-      postJson('/api/queue/remove', { pr_number: prNumber })
-        .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
-        .then(function(result) {
-          if (result.ok) {
-            window.location.reload();
-          } else {
-            alert(result.data.error || 'Failed to remove');
-          }
-        })
-        .catch(function(err) {
-          alert('Failed: ' + (err.message || 'network error'));
-        });
-    });
-  });
-
-  document.querySelectorAll('.queue-note-save').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var row = btn.closest('tr');
-      var prNumber = parseInt(row.getAttribute('data-pr-number'), 10);
-      var input = row.querySelector('.queue-note-input');
-      var note = input ? input.value : '';
-      postJson('/api/queue/note', { pr_number: prNumber, note: note })
-        .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
-        .then(function(result) {
-          if (result.ok) {
-            window.location.reload();
-          } else {
-            alert(result.data.error || 'Failed to save note');
-          }
-        })
-        .catch(function(err) {
-          alert('Failed: ' + (err.message || 'network error'));
-        });
-    });
-  });
-
-  var otherToggle = document.getElementById('other-prs-toggle');
-  var otherSection = document.getElementById('other-prs-section');
-  var otherLabel = document.getElementById('other-prs-toggle-label');
-  var otherChevron = document.getElementById('other-prs-chevron');
-  if (otherToggle && otherSection) {
-    otherToggle.addEventListener('click', function() {
-      var isHidden = otherSection.classList.contains('hidden');
-      otherSection.classList.toggle('hidden');
-      if (otherLabel) otherLabel.textContent = isHidden ? 'Hide other PRs' : 'Show other PRs ({{ other_prs|length }})';
-      if (otherChevron) otherChevron.textContent = isHidden ? '▲' : '▼';
-    });
-  }
-})();
-</script>
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/board.js') }}"></script>
 {% endblock %}

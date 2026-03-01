@@ -4,6 +4,7 @@ from flask import Blueprint, render_template
 
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
+from app.models.queue_event import QueueEvent
 from app.models.repo import Repo
 from app.services.queue_service import get_queue
 
@@ -73,3 +74,43 @@ def board() -> str:
         other_prs=other_prs,
         last_sync=last_sync,
     )
+
+
+@pages_bp.route("/activity")
+def activity() -> str:
+    """
+    Render the activity log: last 50 queue events with PR metadata.
+
+    QueueEvent is left-outer-joined to PullRequestCache for title/url.
+    """
+    repo = db.session.get(Repo, 1)
+    events: list[dict] = []
+
+    if repo:
+        rows = (
+            db.session.query(QueueEvent, PullRequestCache)
+            .outerjoin(
+                PullRequestCache,
+                db.and_(
+                    PullRequestCache.repo_id == QueueEvent.repo_id,
+                    PullRequestCache.number == QueueEvent.pr_number,
+                ),
+            )
+            .filter(QueueEvent.repo_id == repo.id)
+            .order_by(QueueEvent.created_at.desc())
+            .limit(50)
+            .all()
+        )
+        for qe, pr in rows:
+            events.append(
+                {
+                    "event_type": qe.event_type,
+                    "pr_number": qe.pr_number,
+                    "payload": qe.payload or {},
+                    "created_at": qe.created_at,
+                    "pr_title": pr.title if pr else None,
+                    "pr_url": pr.url if pr else None,
+                }
+            )
+
+    return render_template("activity.html", events=events, repo=repo)
