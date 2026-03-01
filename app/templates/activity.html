@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Activity — PR Release Board{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  {# Controls bar: repo name, link back to board #}
+  <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap items-center gap-4">
+    <div class="font-medium text-gray-800">
+      {% if repo %}
+        {{ repo.owner }} / {{ repo.name }}
+      {% else %}
+        No repo configured
+      {% endif %}
+    </div>
+    <a href="/" class="text-blue-600 hover:underline">← Board</a>
+  </div>
+
+  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <h2 class="px-4 py-3 bg-gray-50 border-b border-gray-200 font-medium text-gray-800">
+      Activity
+    </h2>
+    {% if events %}
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for event in events %}
+          <tr>
+            <td class="px-4 py-3 text-gray-700 text-sm">
+              {{ event.created_at.strftime('%Y-%m-%d %H:%M UTC') }}
+            </td>
+            <td class="px-4 py-3">
+              {% if event.event_type == 'added' %}
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800">added</span>
+              {% elif event.event_type == 'removed' %}
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-800">removed</span>
+              {% elif event.event_type == 'moved' %}
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">moved</span>
+              {% elif event.event_type == 'note_updated' %}
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">note_updated</span>
+              {% elif event.event_type == 'sync_removed' %}
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-800">sync_removed</span>
+              {% else %}
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">{{ event.event_type }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              {% if event.pr_url %}
+                <a href="{{ event.pr_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+                  #{{ event.pr_number }} {{ event.pr_title or '(no title)' }}
+                </a>
+              {% else %}
+                <span class="text-gray-700">#{{ event.pr_number }} {{ event.pr_title or '(no title)' }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-gray-700 text-sm">
+              {% if event.event_type == 'added' %}
+                Added at position {{ event.payload.get('position', '—') }}
+              {% elif event.event_type == 'removed' %}
+                Removed from position {{ event.payload.get('position', '—') }}
+              {% elif event.event_type == 'moved' %}
+                Moved from {{ event.payload.get('from_position', '—') }} → {{ event.payload.get('to_position', '—') }}
+              {% elif event.event_type == 'note_updated' %}
+                {% if event.payload.get('note') %}
+                  Note: {{ event.payload.get('note') }}
+                {% else %}
+                  Note cleared
+                {% endif %}
+              {% elif event.event_type == 'sync_removed' %}
+                Removed by sync
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="px-4 py-8 text-center text-gray-600">
+        No activity yet.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
