@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 
+from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.extensions import db
@@ -33,6 +34,15 @@ class QueueEvent(db.Model):
     """
 
     __tablename__ = "queue_events"
+
+    __table_args__ = (
+        Index(
+            "ix_queue_events_repo_id_created_at",
+            "repo_id",
+            "created_at",
+            postgresql_ops={"created_at": "DESC"},
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     repo_id = db.Column(db.Integer, db.ForeignKey("repos.id"), nullable=False)
