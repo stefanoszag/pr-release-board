@@ -1,5 +1,7 @@
 # pr-release-board
 
+[![codecov](https://codecov.io/gh/stefanoszag/pr-release-board/graph/badge.svg?token=SJKDCQ4DYQ)](https://codecov.io/gh/stefanoszag/pr-release-board) [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/) [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A lightweight visual board for prioritising and coordinating pull request releases. Sync open PRs from GitHub, manage a release queue with drag-and-drop reordering, and track all queue activity in an event log.
 
 ## What it does

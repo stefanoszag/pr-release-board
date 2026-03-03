@@ -24,6 +24,7 @@ black = "^24.0"
 isort = "^5.13"
 ruff = "^0.4"
 pre-commit = "^3.7"
+codecov = "^2.1"
 
 [tool.black]
 line-length = 88

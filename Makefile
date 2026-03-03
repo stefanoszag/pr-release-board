@@ -8,15 +8,17 @@ TEST_DB_NAME_DB := test_pr_board
 TEST_DB_HOST := 127.0.0.1
 TEST_DATABASE_URL := postgresql://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):5432/$(TEST_DB_NAME_DB)
 
-.PHONY: test-db-up test-db-down test-db-logs test-db-check test help
+.PHONY: test-db-up test-db-down test-db-logs test-db-check test test-coverage test-codecov help
 
 help:
 	@echo "Testing (pytest uses test DB by default; no DATABASE_URL needed):"
-	@echo "  make test          - Start test DB if needed, run pytest."
-	@echo "  make test-db-up    - Start Postgres container (idempotent)."
-	@echo "  make test-db-down  - Stop and remove container."
-	@echo "  make test-db-check - Verify connectivity from host."
-	@echo "  make test-db-logs  - Tail container logs."
+	@echo "  make test           - Start test DB if needed, run pytest."
+	@echo "  make test-coverage  - Run pytest with coverage (term + coverage.xml)."
+	@echo "  make test-codecov  - test-coverage + upload to Codecov (set CODECOV_TOKEN)."
+	@echo "  make test-db-up     - Start Postgres container (idempotent)."
+	@echo "  make test-db-down   - Stop and remove container."
+	@echo "  make test-db-check  - Verify connectivity from host."
+	@echo "  make test-db-logs   - Tail container logs."
 
 ## Start Postgres in Docker for testing (port 5432 on host loopback)
 test-db-up:
@@ -65,3 +67,12 @@ import os; from sqlalchemy import create_engine; from urllib.parse import urlpar
 test:
 	$(MAKE) test-db-up 2>/dev/null || true
 	@poetry run pytest tests/ -v
+
+## Run pytest with coverage report (term + coverage.xml for Codecov)
+test-coverage:
+	$(MAKE) test-db-up 2>/dev/null || true
+	@poetry run pytest --cov=app --cov-report=xml --cov-report=term -q tests/
+
+## Run test-coverage then upload to Codecov (requires CODECOV_TOKEN in env)
+test-codecov: test-coverage
+	@poetry run codecov
