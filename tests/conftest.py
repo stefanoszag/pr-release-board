@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 
-import pytest
+import pytest  # type: ignore[import-untyped]
 
 from app import create_app
 from app.extensions import db
