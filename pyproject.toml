@@ -25,6 +25,25 @@ isort = "^5.13"
 ruff = "^0.4"
 pre-commit = "^3.7"
 
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["migrations/*", "*/__pycache__/*", "*.pyc", "*.pyo"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
