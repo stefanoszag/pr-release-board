@@ -57,6 +57,34 @@ poetry run flask run
 
 Then open **http://127.0.0.1:5000/**.
 
+## Testing
+
+Tests use a Postgres database. **You don’t need to set `DATABASE_URL`** — `tests/conftest.py` uses the test DB URL by default (`postgresql://test:test@127.0.0.1:5432/test_pr_board`). Start the test DB with Docker, then run pytest:
+
+```bash
+# Easiest: start test DB if needed and run tests
+make test
+```
+
+Or start the DB once and run pytest yourself:
+
+```bash
+make test-db-up
+poetry run pytest tests/ -v
+# when finished: make test-db-down
+```
+
+| Command | Description |
+|---------|-------------|
+| `make test` | Start test DB if needed, run pytest (no env vars required). |
+| `make test-db-up` | Start Postgres 16 container (idempotent). |
+| `make test-db-down` | Stop and remove the test DB container. |
+| `make test-db-check` | Verify connectivity (if tests fail to connect). |
+| `make test-db-logs` | Tail test DB container logs. |
+| `make help` | List all targets. |
+
+To use a different test DB (e.g. another port), set `TEST_DATABASE_URL` when running pytest. If port 5432 is in use, change the port in the Makefile and set `TEST_DATABASE_URL` to match.
+
 ## Run with Docker Compose (app + Postgres) — recommended
 
 Starts the app and a Postgres 16 database. The app waits for the DB to be ready, runs migrations, then starts. One repo is seeded from env if the `repos` table is empty. Background sync starts automatically.

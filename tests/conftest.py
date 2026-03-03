@@ -4,26 +4,25 @@ import os
 import subprocess
 import sys
 
+# Set test DB URL before any app import. Config reads os.environ at import time,
+# so DATABASE_URL must be set now or the app would use SQLite.
+_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:5432/test_pr_board"
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", _TEST_DATABASE_URL)
+
 import pytest  # type: ignore[import-untyped]
 
 from app import create_app
 from app.extensions import db
 
-# Default test DB URL when neither TEST_DATABASE_URL nor DATABASE_URL is set.
-_TEST_DATABASE_URL = "postgresql://test:test@localhost:5432/test_pr_board"
-
 
 def _ensure_test_database_url() -> None:
     """
-    Set DATABASE_URL to the test database for this process.
+    Re-apply test DB URL (e.g. before subprocess calls that need it).
 
-    Uses TEST_DATABASE_URL if set, otherwise DATABASE_URL, otherwise
-    a default local Postgres URL. Ensures alembic and create_app use the same DB.
+    Uses TEST_DATABASE_URL if set, otherwise the default. Already set at
+    conftest load time so Config sees it; this keeps alembic subprocess in sync.
     """
-    url = os.environ.get(
-        "TEST_DATABASE_URL",
-        os.environ.get("DATABASE_URL", _TEST_DATABASE_URL),
-    )
+    url = os.environ.get("TEST_DATABASE_URL", _TEST_DATABASE_URL)
     os.environ["DATABASE_URL"] = url
 
 
