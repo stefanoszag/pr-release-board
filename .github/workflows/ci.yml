@@ -45,11 +45,14 @@ jobs:
       - name: Run migrations
         run: poetry run alembic upgrade head
 
-      - name: Pytest
-        run: poetry run pytest --cov=app --cov-report=xml -q
+      - name: Run tests with coverage
+        run: poetry run pytest tests/ -v --cov=app --cov-report=xml --cov-report=term --tb=short
 
-      - name: Codecov (optional)
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-        continue-on-error: true
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
