@@ -1,11 +1,9 @@
-# CI: lint, format check, and tests on push and pull_request.
+# CI: runs only for open PRs; every push to the PR branch triggers a run.
 # Uses same test DB URL as tests/conftest.py (127.0.0.1).
 
 name: CI
 
 on:
-  push:
-    branches: ["**"]
   pull_request:
     branches: ["**"]
 
