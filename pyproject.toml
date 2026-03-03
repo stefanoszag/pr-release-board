@@ -16,6 +16,15 @@ psycopg2-binary = "^2.9"
 PyGithub = "^2.4"
 apscheduler = "^3.10"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-cov = "^5.0"
+coverage = {extras = ["toml"], version = "^7.0"}
+black = "^24.0"
+isort = "^5.13"
+ruff = "^0.4"
+pre-commit = "^3.7"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
