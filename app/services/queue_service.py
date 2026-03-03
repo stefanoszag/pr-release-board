@@ -50,7 +50,8 @@ def add_to_queue(repo_id: int, pr_number: int, note: str = "") -> QueueItem:
         The created QueueItem.
 
     Raises:
-        ValueError: If the PR is not in cache, not open, not approved, or already in queue.
+        ValueError: If the PR is not in cache, not open, not approved,
+            or already in queue.
     """
     pr_cache = (
         db.session.query(PullRequestCache)
@@ -181,7 +182,9 @@ def reorder_queue(repo_id: int, ordered_pr_numbers: list[int]) -> None:
     current_prs = {item.pr_number for item in items}
     submitted = set(ordered_pr_numbers)
     if current_prs != submitted:
-        raise ValueError("ordered_pr_numbers must match current queue (no missing or extra items)")
+        raise ValueError(
+            "ordered_pr_numbers must match current queue (no missing or extra items)"
+        )
 
     before_positions = {item.pr_number: item.position for item in items}
     pr_to_item = {item.pr_number: item for item in items}

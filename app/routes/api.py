@@ -11,8 +11,8 @@ from app.services.github_service import sync_repo
 from app.services.queue_service import (
     add_to_queue,
     get_queue,
-    reorder_queue,
     remove_from_queue,
+    reorder_queue,
     update_note,
 )
 

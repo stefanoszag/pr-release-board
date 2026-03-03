@@ -41,7 +41,11 @@ class PullRequestCache(db.Model):
     approved = db.Column(db.Boolean, nullable=False, default=False)
     synced_at = db.Column(db.DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (db.UniqueConstraint("repo_id", "number", name="uq_pull_request_cache_repo_number"),)
+    __table_args__ = (
+        db.UniqueConstraint(
+            "repo_id", "number", name="uq_pull_request_cache_repo_number"
+        ),
+    )
 
     def __repr__(self) -> str:
         return f"<PullRequestCache repo_id={self.repo_id} number={self.number}>"
