@@ -60,7 +60,11 @@ def test_add_to_queue_happy_path_creates_position_one(db_session: Any) -> None:
     assert item.pr_number == 1
     assert item.repo_id == repo.id
     assert item.note is None
-    events = db_session.query(QueueEvent).filter_by(event_type="added").all()
+    events = (
+        db_session.query(QueueEvent)
+        .filter_by(repo_id=repo.id, event_type="added")
+        .all()
+    )
     assert len(events) == 1
     assert events[0].payload == {"position": 1}
 
@@ -127,7 +131,11 @@ def test_remove_from_queue_happy_path(db_session: Any) -> None:
     assert len(remaining) == 1
     assert remaining[0].pr_number == 2
     assert remaining[0].position == 1
-    events = db_session.query(QueueEvent).filter_by(event_type="removed").all()
+    events = (
+        db_session.query(QueueEvent)
+        .filter_by(repo_id=repo.id, event_type="removed")
+        .all()
+    )
     assert len(events) == 1
     assert events[0].payload == {"position": 1}
 
@@ -161,7 +169,11 @@ def test_reorder_queue_happy_path(db_session: Any) -> None:
     )
     assert [i.pr_number for i in items] == [3, 1, 2]
     assert [i.position for i in items] == [1, 2, 3]
-    moved = db_session.query(QueueEvent).filter_by(event_type="moved").all()
+    moved = (
+        db_session.query(QueueEvent)
+        .filter_by(repo_id=repo.id, event_type="moved")
+        .all()
+    )
     assert len(moved) >= 1
 
 
@@ -195,7 +207,11 @@ def test_update_note_happy_path(db_session: Any) -> None:
     queue_service.add_to_queue(repo.id, 1, note="old")
     item = queue_service.update_note(repo.id, 1, " new note ")
     assert item.note == "new note"
-    events = db_session.query(QueueEvent).filter_by(event_type="note_updated").all()
+    events = (
+        db_session.query(QueueEvent)
+        .filter_by(repo_id=repo.id, event_type="note_updated")
+        .all()
+    )
     assert len(events) == 1
     assert events[0].payload == {"note": "new note"}
 
@@ -230,7 +246,11 @@ def test_cleanup_closed_prs_removes_and_renumbers(db_session: Any) -> None:
     )
     assert [r.pr_number for r in remaining] == [1, 3]
     assert [r.position for r in remaining] == [1, 2]
-    events = db_session.query(QueueEvent).filter_by(event_type="sync_removed").all()
+    events = (
+        db_session.query(QueueEvent)
+        .filter_by(repo_id=repo.id, event_type="sync_removed")
+        .all()
+    )
     assert len(events) == 1
     assert events[0].pr_number == 2
 
