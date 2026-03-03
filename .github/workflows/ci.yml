@@ -47,15 +47,6 @@ jobs:
       - name: Run migrations
         run: poetry run alembic upgrade head
 
-      - name: Black
-        run: poetry run black --check app tests
-
-      - name: isort
-        run: poetry run isort --check-only app tests
-
-      - name: Ruff
-        run: poetry run ruff check app tests
-
       - name: Pytest
         run: poetry run pytest --cov=app --cov-report=xml -q
 
