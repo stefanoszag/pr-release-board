@@ -1,5 +1,7 @@
 # pr-release-board
 
+[![codecov](https://codecov.io/gh/stefanoszag/pr-release-board/graph/badge.svg?token=SJKDCQ4DYQ)](https://codecov.io/gh/stefanoszag/pr-release-board) [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/) [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A lightweight visual board for prioritising and coordinating pull request releases. Sync open PRs from GitHub, manage a release queue with drag-and-drop reordering, and track all queue activity in an event log.
 
 ## What it does
@@ -56,6 +58,34 @@ poetry run flask run
 ```
 
 Then open **http://127.0.0.1:5000/**.
+
+## Testing
+
+Tests use a Postgres database. **You don’t need to set `DATABASE_URL`** — `tests/conftest.py` uses the test DB URL by default (`postgresql://test:test@127.0.0.1:5432/test_pr_board`). Start the test DB with Docker, then run pytest:
+
+```bash
+# Easiest: start test DB if needed and run tests
+make test
+```
+
+Or start the DB once and run pytest yourself:
+
+```bash
+make test-db-up
+poetry run pytest tests/ -v
+# when finished: make test-db-down
+```
+
+| Command | Description |
+|---------|-------------|
+| `make test` | Start test DB if needed, run pytest (no env vars required). |
+| `make test-db-up` | Start Postgres 16 container (idempotent). |
+| `make test-db-down` | Stop and remove the test DB container. |
+| `make test-db-check` | Verify connectivity (if tests fail to connect). |
+| `make test-db-logs` | Tail test DB container logs. |
+| `make help` | List all targets. |
+
+To use a different test DB (e.g. another port), set `TEST_DATABASE_URL` when running pytest. If port 5432 is in use, change the port in the Makefile and set `TEST_DATABASE_URL` to match.
 
 ## Run with Docker Compose (app + Postgres) — recommended
 

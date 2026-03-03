@@ -18,6 +18,9 @@ venv/
 .env
 .env.local
 
+# Flask instance folder (SQLite DB when DATABASE_URL not set, etc.)
+instance/
+
 # Testing / coverage
 .pytest_cache/
 .coverage

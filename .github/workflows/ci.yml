@@ -1,0 +1,55 @@
+# CI: runs only for open PRs; every push to the PR branch triggers a run.
+# Uses same test DB URL as tests/conftest.py (127.0.0.1).
+
+name: CI
+
+on:
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_pr_board
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Match tests/conftest.py and Makefile (127.0.0.1 for consistent connectivity)
+      DATABASE_URL: postgresql://test:test@127.0.0.1:5432/test_pr_board
+      GITHUB_TOKEN: ""  # empty — tests mock PyGitHub
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry and dependencies
+        run: pip install poetry && poetry install
+
+      - name: Run migrations
+        run: poetry run alembic upgrade head
+
+      - name: Pytest
+        run: poetry run pytest --cov=app --cov-report=xml -q
+
+      - name: Codecov (optional)
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
