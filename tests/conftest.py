@@ -43,8 +43,29 @@ def run_migrations() -> None:
     )
 
 
+@pytest.fixture(scope="session", autouse=True)
+def truncate_tables(run_migrations: None) -> None:
+    """
+    Truncate all app tables at the start of each test run so reruns start clean.
+
+    Runs after migrations, before the app fixture. create_app() then runs
+    seed_repo() and adds the single repo row. Postgres only; no-op for SQLite.
+    """
+    from sqlalchemy import create_engine, text
+
+    url = os.environ.get("DATABASE_URL", "")
+    if not url or "sqlite" in url:
+        return
+    engine = create_engine(url)
+    with engine.connect() as conn:
+        conn.execute(
+            text("TRUNCATE repos RESTART IDENTITY CASCADE")
+        )
+        conn.commit()
+
+
 @pytest.fixture(scope="session")
-def app():
+def app(truncate_tables):
     """Create app once per session pointing at TEST_DATABASE_URL."""
     _ensure_test_database_url()
     _app = create_app()
