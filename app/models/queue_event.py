@@ -7,15 +7,16 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from app.extensions import db
 
-
 # Valid event_type values for queue_events
-QUEUE_EVENT_TYPES = frozenset({
-    "added",
-    "removed",
-    "moved",
-    "note_updated",
-    "sync_removed",
-})
+QUEUE_EVENT_TYPES = frozenset(
+    {
+        "added",
+        "removed",
+        "moved",
+        "note_updated",
+        "sync_removed",
+    }
+)
 
 
 class QueueEvent(db.Model):

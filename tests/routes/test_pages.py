@@ -4,8 +4,8 @@ from typing import Any
 
 import pytest  # type: ignore[import-untyped]
 
-from app.models.repo import Repo
 from app.extensions import db
+from app.models.repo import Repo
 
 
 def test_get_board_200_contains_board_and_queued(client: Any) -> None:

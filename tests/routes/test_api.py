@@ -1,17 +1,14 @@
 """API endpoint tests using Flask test client; sync_repo mocked where needed."""
 
-from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest  # type: ignore[import-untyped]
 from sqlalchemy import text
 
-from app.extensions import db
 from app.models.repo import Repo
 from app.services import queue_service
-
-from tests.services.test_queue_service import make_pr, make_repo
+from tests.services.test_queue_service import make_pr
 
 
 @pytest.fixture
@@ -188,9 +185,7 @@ def test_post_queue_remove_not_in_queue_404(
 
 
 # ---- POST /api/queue/note ----
-def test_post_queue_note_exists_200(
-    client: Any, db_session: Any, repo_1: Repo
-) -> None:
+def test_post_queue_note_exists_200(client: Any, db_session: Any, repo_1: Repo) -> None:
     """POST /api/queue/note when item exists → 200 updated item."""
     make_pr(db_session, repo_1, pr_number=701)
     db_session.commit()

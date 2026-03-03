@@ -5,7 +5,6 @@ from typing import Any
 
 import pytest  # type: ignore[import-untyped]
 
-from app.extensions import db
 from app.models.pull_request import PullRequestCache
 from app.models.queue_event import QueueEvent
 from app.models.queue_item import QueueItem

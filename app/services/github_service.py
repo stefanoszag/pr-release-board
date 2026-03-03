@@ -100,17 +100,12 @@ def sync_repo(repo_id: int) -> dict:
         updated += 1
 
     # Mark PRs that were open but not in this fetch as closed; set is_merged from GitHub
-    to_close = (
-        db.session.query(PullRequestCache)
-        .filter(
-            PullRequestCache.repo_id == repo_id,
-            PullRequestCache.is_open.is_(True),
-        )
+    to_close = db.session.query(PullRequestCache).filter(
+        PullRequestCache.repo_id == repo_id,
+        PullRequestCache.is_open.is_(True),
     )
     if seen_numbers:
-        to_close = to_close.filter(
-            PullRequestCache.number.notin_(seen_numbers)
-        )
+        to_close = to_close.filter(PullRequestCache.number.notin_(seen_numbers))
     to_close_list = to_close.all()
     for cached in to_close_list:
         try:

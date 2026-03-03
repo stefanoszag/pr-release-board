@@ -39,4 +39,7 @@ class QueueItem(db.Model):
     )
 
     def __repr__(self) -> str:
-        return f"<QueueItem repo_id={self.repo_id} pr_number={self.pr_number} position={self.position}>"
+        return (
+            f"<QueueItem repo_id={self.repo_id} pr_number={self.pr_number} "
+            f"position={self.position}>"
+        )

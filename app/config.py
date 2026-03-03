@@ -26,9 +26,7 @@ class Config:
     DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
 
     # Sync
-    SYNC_INTERVAL_MINUTES: int = int(
-        os.environ.get("SYNC_INTERVAL_MINUTES", "5")
-    )
+    SYNC_INTERVAL_MINUTES: int = int(os.environ.get("SYNC_INTERVAL_MINUTES", "5"))
 
     @classmethod
     def init_app(cls, app: "Flask") -> None:

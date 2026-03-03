@@ -6,14 +6,11 @@ from unittest.mock import MagicMock
 
 import pytest  # type: ignore[import-untyped]
 
-from app.extensions import db
 from app.models.pull_request import PullRequestCache
 from app.models.queue_item import QueueItem
-from app.models.repo import Repo
 from app.services import github_service
 from app.services.queue_service import add_to_queue
-
-from tests.services.test_queue_service import make_repo, make_pr
+from tests.services.test_queue_service import make_pr, make_repo
 
 
 def _make_mock_pr(
@@ -86,9 +83,7 @@ def test_sync_repo_upsert_new_pr(
     assert result["updated"] == 1
     assert result["repo"] == "test-repo"
     cached = (
-        db_session.query(PullRequestCache)
-        .filter_by(repo_id=repo.id, number=42)
-        .first()
+        db_session.query(PullRequestCache).filter_by(repo_id=repo.id, number=42).first()
     )
     assert cached is not None
     assert cached.title == "New feature"
@@ -130,9 +125,7 @@ def test_sync_repo_update_existing_pr(
 
     assert result["updated"] == 1
     cached = (
-        db_session.query(PullRequestCache)
-        .filter_by(repo_id=repo.id, number=1)
-        .first()
+        db_session.query(PullRequestCache).filter_by(repo_id=repo.id, number=1).first()
     )
     assert cached.title == "Updated title"
     assert cached.author == "newauthor"
@@ -157,9 +150,7 @@ def test_sync_repo_approved_flag_true(
         github_service.sync_repo(repo.id)
 
     cached = (
-        db_session.query(PullRequestCache)
-        .filter_by(repo_id=repo.id, number=1)
-        .first()
+        db_session.query(PullRequestCache).filter_by(repo_id=repo.id, number=1).first()
     )
     assert cached.approved is True
 
@@ -181,9 +172,7 @@ def test_sync_repo_approved_flag_false(
         github_service.sync_repo(repo.id)
 
     cached = (
-        db_session.query(PullRequestCache)
-        .filter_by(repo_id=repo.id, number=1)
-        .first()
+        db_session.query(PullRequestCache).filter_by(repo_id=repo.id, number=1).first()
     )
     assert cached.approved is False
 
@@ -208,9 +197,7 @@ def test_sync_repo_close_stale_pr(
 
     db_session.expire_all()  # Reload from DB
     cached = (
-        db_session.query(PullRequestCache)
-        .filter_by(repo_id=repo.id, number=99)
-        .first()
+        db_session.query(PullRequestCache).filter_by(repo_id=repo.id, number=99).first()
     )
     assert cached is not None
     assert cached.is_open is False
@@ -236,11 +223,7 @@ def test_sync_repo_cleanup_triggered(
     with app_with_token.app_context():
         github_service.sync_repo(repo.id)
 
-    item = (
-        db_session.query(QueueItem)
-        .filter_by(repo_id=repo.id, pr_number=1)
-        .first()
-    )
+    item = db_session.query(QueueItem).filter_by(repo_id=repo.id, pr_number=1).first()
     assert item is None
 
 

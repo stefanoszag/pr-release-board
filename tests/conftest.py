@@ -9,10 +9,10 @@ import sys
 _TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:5432/test_pr_board"
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", _TEST_DATABASE_URL)
 
-import pytest  # type: ignore[import-untyped]
+import pytest  # type: ignore[import-untyped]  # noqa: E402
 
-from app import create_app
-from app.extensions import db
+from app import create_app  # noqa: E402
+from app.extensions import db  # noqa: E402
 
 
 def _ensure_test_database_url() -> None:
@@ -58,9 +58,7 @@ def truncate_tables(run_migrations: None) -> None:
         return
     engine = create_engine(url)
     with engine.connect() as conn:
-        conn.execute(
-            text("TRUNCATE repos RESTART IDENTITY CASCADE")
-        )
+        conn.execute(text("TRUNCATE repos RESTART IDENTITY CASCADE"))
         conn.commit()
 
 
