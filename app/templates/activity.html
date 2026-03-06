@@ -5,10 +5,10 @@
 {% block content %}
 <div class="space-y-6">
   {# Controls bar: repo dropdown, link back to board #}
-  <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap items-center gap-4">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap items-center gap-4">
     <select
       id="repo-select"
-      class="border border-gray-300 rounded-md px-3 py-2 text-gray-800 font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      class="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       onchange="window.location.href='/activity?repo_id=' + this.value"
     >
       {% for r in repos %}
@@ -17,54 +17,54 @@
         </option>
       {% endfor %}
     </select>
-    <a href="/" class="text-blue-600 hover:underline">← Board</a>
+    <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline">← Board</a>
   </div>
 
-  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-    <h2 class="px-4 py-3 bg-gray-50 border-b border-gray-200 font-medium text-gray-800">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <h2 class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-800 dark:text-gray-100">
       Activity
     </h2>
     {% if events %}
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-800">
           <tr>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timestamp</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Event</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">PR</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Details</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
           {% for event in events %}
           <tr>
-            <td class="px-4 py-3 text-gray-700 text-sm">
+            <td class="px-4 py-3 text-gray-700 dark:text-gray-200 text-sm">
               {{ event.created_at.strftime('%Y-%m-%d %H:%M UTC') }}
             </td>
             <td class="px-4 py-3">
               {% if event.event_type == 'added' %}
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800">added</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">added</span>
               {% elif event.event_type == 'removed' %}
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-red-100 text-red-800">removed</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">removed</span>
               {% elif event.event_type == 'moved' %}
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800">moved</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">moved</span>
               {% elif event.event_type == 'note_updated' %}
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">note_updated</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">note_updated</span>
               {% elif event.event_type == 'sync_removed' %}
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-800">sync_removed</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200">sync_removed</span>
               {% else %}
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">{{ event.event_type }}</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">{{ event.event_type }}</span>
               {% endif %}
             </td>
             <td class="px-4 py-3">
               {% if event.pr_url %}
-                <a href="{{ event.pr_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+                <a href="{{ event.pr_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">
                   #{{ event.pr_number }} {{ event.pr_title or '(no title)' }}
                 </a>
               {% else %}
-                <span class="text-gray-700">#{{ event.pr_number }} {{ event.pr_title or '(no title)' }}</span>
+                <span class="text-gray-700 dark:text-gray-200">#{{ event.pr_number }} {{ event.pr_title or '(no title)' }}</span>
               {% endif %}
             </td>
-            <td class="px-4 py-3 text-gray-700 text-sm">
+            <td class="px-4 py-3 text-gray-700 dark:text-gray-200 text-sm">
               {% if event.event_type == 'added' %}
                 Added at position {{ event.payload.get('position', '—') }}
               {% elif event.event_type == 'removed' %}
@@ -88,7 +88,7 @@
         </tbody>
       </table>
     {% else %}
-      <div class="px-4 py-8 text-center text-gray-600">
+      <div class="px-4 py-8 text-center text-gray-600 dark:text-gray-400">
         No activity yet.
       </div>
     {% endif %}
