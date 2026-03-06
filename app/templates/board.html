@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6">
-  {# Controls bar: repo, Sync now, last sync #}
+<div id="board-container" class="space-y-6" data-current-repo-id="{{ selected_repo_id }}">
+  {# Controls bar: repo dropdown, Sync now, last sync #}
   <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap items-center gap-4">
-    <div class="font-medium text-gray-800">
-      {% if repo %}
-        {{ repo.owner }} / {{ repo.name }}
-      {% else %}
-        No repo configured
-      {% endif %}
-    </div>
+    <select
+      id="repo-select"
+      class="border border-gray-300 rounded-md px-3 py-2 text-gray-800 font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      onchange="window.location.href='/?repo_id=' + this.value"
+    >
+      {% for r in repos %}
+        <option value="{{ r.id }}" {% if r.id == selected_repo_id %}selected{% endif %}>
+          {{ r.owner }} / {{ r.name }}
+        </option>
+      {% endfor %}
+    </select>
     <button
       type="button"
       id="sync-btn"
