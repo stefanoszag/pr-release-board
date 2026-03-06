@@ -1,8 +1,14 @@
 /**
  * Board page: sync, queue add/remove/note, other-PRs toggle, drag-and-drop reorder.
+ * Uses data-current-repo-id on #board-container for all repo-scoped API calls.
  */
 (function () {
   "use strict";
+
+  var boardContainer = document.getElementById("board-container");
+  var currentRepoId = boardContainer
+    ? boardContainer.getAttribute("data-current-repo-id")
+    : null;
 
   function postJson(url, body) {
     return fetch(url, {
@@ -21,13 +27,15 @@
     });
   }
 
-  // Sync button
+  // Sync button: POST with repo_id in query
   var syncBtn = document.getElementById("sync-btn");
   if (syncBtn) {
     syncBtn.addEventListener("click", function () {
       syncBtn.disabled = true;
       syncBtn.textContent = "Syncing…";
-      fetch("/api/sync", {
+      var syncUrl =
+        "/api/sync" + (currentRepoId ? "?repo_id=" + currentRepoId : "");
+      fetch(syncUrl, {
         method: "POST",
         headers: { Accept: "application/json" },
       })
@@ -54,7 +62,10 @@
   if (lastSyncLabel) {
     var POLL_INTERVAL_MS = 60 * 1000; // 1 minute
     function updateLastSyncLabel() {
-      fetch("/api/last-sync", { headers: { Accept: "application/json" } })
+      var lastSyncUrl =
+        "/api/last-sync" +
+        (currentRepoId ? "?repo_id=" + currentRepoId : "");
+      fetch(lastSyncUrl, { headers: { Accept: "application/json" } })
         .then(parseJsonResponse)
         .then(function (result) {
           if (result.ok && result.data && result.data.last_sync) {
@@ -84,11 +95,15 @@
     setTimeout(updateLastSyncLabel, 5000); // refresh once soon after load
   }
 
-  // Add to queue
+  // Add to queue (body includes repo_id for multi-repo)
   document.querySelectorAll(".queue-add").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var prNumber = parseInt(btn.getAttribute("data-pr-number"), 10);
-      postJson("/api/queue/add", { pr_number: prNumber })
+      var body = { pr_number: prNumber };
+      if (currentRepoId != null) {
+        body.repo_id = parseInt(currentRepoId, 10);
+      }
+      postJson("/api/queue/add", body)
         .then(parseJsonResponse)
         .then(function (result) {
           if (result.ok) {
@@ -107,7 +122,11 @@
   document.querySelectorAll(".queue-remove").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var prNumber = parseInt(btn.getAttribute("data-pr-number"), 10);
-      postJson("/api/queue/remove", { pr_number: prNumber })
+      var body = { pr_number: prNumber };
+      if (currentRepoId != null) {
+        body.repo_id = parseInt(currentRepoId, 10);
+      }
+      postJson("/api/queue/remove", body)
         .then(parseJsonResponse)
         .then(function (result) {
           if (result.ok) {
@@ -129,7 +148,11 @@
       var prNumber = parseInt(row.getAttribute("data-pr-number"), 10);
       var input = row.querySelector(".queue-note-input");
       var note = input ? input.value : "";
-      postJson("/api/queue/note", { pr_number: prNumber, note: note })
+      var body = { pr_number: prNumber, note: note };
+      if (currentRepoId != null) {
+        body.repo_id = parseInt(currentRepoId, 10);
+      }
+      postJson("/api/queue/note", body)
         .then(parseJsonResponse)
         .then(function (result) {
           if (result.ok) {
@@ -178,9 +201,11 @@
             orderedPrNumbers.push(prNum);
           }
         }
-        postJson("/api/queue/reorder", {
-          ordered_pr_numbers: orderedPrNumbers,
-        })
+        var reorderBody = { ordered_pr_numbers: orderedPrNumbers };
+        if (currentRepoId != null) {
+          reorderBody.repo_id = parseInt(currentRepoId, 10);
+        }
+        postJson("/api/queue/reorder", reorderBody)
           .then(parseJsonResponse)
           .then(function (result) {
             if (result.ok) {
