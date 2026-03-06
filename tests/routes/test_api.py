@@ -7,7 +7,38 @@ import pytest  # type: ignore[import-untyped]
 
 from app.models.repo import Repo
 from app.services import queue_service
-from tests.services.test_queue_service import make_pr
+from tests.services.test_queue_service import make_pr, make_repo
+
+
+# ---- GET /api/repos ----
+def test_get_repos_returns_list(client: Any, repo_1: Repo) -> None:
+    """GET /api/repos → 200 with list of repo dicts (id, owner, name,
+    default_branch)."""
+    r = client.get("/api/repos")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    first = next(d for d in data if d["id"] == repo_1.id)
+    assert first["owner"] == repo_1.owner
+    assert first["name"] == repo_1.name
+    assert first["default_branch"] == repo_1.default_branch
+
+
+def test_get_repos_empty_when_no_repos(client: Any, db_session: Any, app: Any) -> None:
+    """GET /api/repos when no repos in DB → 200 with empty list."""
+    from app.models.pull_request import PullRequestCache
+    from app.models.queue_event import QueueEvent
+    from app.models.queue_item import QueueItem
+
+    db_session.query(QueueEvent).delete()
+    db_session.query(QueueItem).delete()
+    db_session.query(PullRequestCache).delete()
+    db_session.query(Repo).delete()
+    db_session.commit()
+    r = client.get("/api/repos")
+    assert r.status_code == 200
+    assert r.get_json() == []
 
 
 # ---- GET /api/health ----
@@ -45,6 +76,27 @@ def test_get_prs_approved_filter(client: Any, db_session: Any, repo_1: Repo) -> 
     assert any(p["number"] == 101 for p in data)
 
 
+def test_get_prs_invalid_repo_id_404(client: Any, repo_1: Repo) -> None:
+    """GET /api/prs?repo_id=99999 when repo not in DB → 404."""
+    r = client.get("/api/prs?repo_id=99999")
+    assert r.status_code == 404
+    assert (r.get_json() or {}).get("error") == "Repo not found"
+
+
+def test_get_queue_invalid_repo_id_404(client: Any) -> None:
+    """GET /api/queue?repo_id=99999 when repo not in DB → 404."""
+    r = client.get("/api/queue?repo_id=99999")
+    assert r.status_code == 404
+    assert (r.get_json() or {}).get("error") == "Repo not found"
+
+
+def test_get_last_sync_invalid_repo_id_404(client: Any) -> None:
+    """GET /api/last-sync?repo_id=99999 when repo not in DB → 404."""
+    r = client.get("/api/last-sync?repo_id=99999")
+    assert r.status_code == 404
+    assert (r.get_json() or {}).get("error") == "Repo not found"
+
+
 # ---- GET /api/queue ----
 def test_get_queue_returns_ordered(client: Any, db_session: Any, repo_1: Repo) -> None:
     """GET /api/queue with items in queue → 200 ordered list."""
@@ -62,6 +114,26 @@ def test_get_queue_returns_ordered(client: Any, db_session: Any, repo_1: Repo) -
     by_num = {q["pr_number"]: q for q in data}
     assert 301 in by_num and 302 in by_num
     assert by_num[301]["position"] < by_num[302]["position"]
+
+
+def test_get_prs_scoped_by_repo_id(client: Any, db_session: Any, repo_1: Repo) -> None:
+    """GET /api/prs?repo_id=X returns only PRs for that repo (multi-repo scoping)."""
+    repo2 = make_repo(db_session)
+    make_pr(db_session, repo_1, pr_number=9011, title="PR in repo 1")
+    make_pr(db_session, repo2, pr_number=9012, title="PR in repo 2")
+    db_session.commit()
+    r = client.get(f"/api/prs?repo_id={repo_1.id}")
+    assert r.status_code == 200
+    data = r.get_json()
+    numbers = [p["number"] for p in data]
+    assert 9011 in numbers
+    assert 9012 not in numbers
+    r2 = client.get(f"/api/prs?repo_id={repo2.id}")
+    assert r2.status_code == 200
+    data2 = r2.get_json()
+    numbers2 = [p["number"] for p in data2]
+    assert 9012 in numbers2
+    assert 9011 not in numbers2
 
 
 # ---- GET /api/last-sync ----
@@ -97,6 +169,17 @@ def test_post_queue_add_approved_pr_201(
     assert data.get("note") == "ready"
 
 
+def test_post_queue_add_missing_repo_id_400(client: Any) -> None:
+    """POST /api/queue/add without repo_id in body → 400."""
+    r = client.post(
+        "/api/queue/add",
+        json={"pr_number": 1},
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+    assert "repo_id" in (r.get_json() or {}).get("error", "").lower()
+
+
 def test_post_queue_add_missing_pr_number_400(client: Any, repo_1: Repo) -> None:
     """POST /api/queue/add without pr_number → 400."""
     r = client.post(
@@ -106,6 +189,17 @@ def test_post_queue_add_missing_pr_number_400(client: Any, repo_1: Repo) -> None
     )
     assert r.status_code == 400
     assert "pr_number" in (r.get_json() or {}).get("error", "").lower()
+
+
+def test_post_queue_add_invalid_repo_id_404(client: Any) -> None:
+    """POST /api/queue/add with repo_id not in DB → 404 (before checking PR)."""
+    r = client.post(
+        "/api/queue/add",
+        json={"repo_id": 99999, "pr_number": 1},
+        content_type="application/json",
+    )
+    assert r.status_code == 404
+    assert (r.get_json() or {}).get("error") == "Repo not found"
 
 
 def test_post_queue_add_not_approved_400(

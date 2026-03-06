@@ -8,6 +8,7 @@ import pytest  # type: ignore[import-untyped]
 
 from app.models.pull_request import PullRequestCache
 from app.models.queue_item import QueueItem
+from app.models.repo import Repo
 from app.services import github_service
 from app.services.queue_service import add_to_queue
 from tests.services.test_queue_service import make_pr, make_repo
@@ -243,3 +244,125 @@ def test_sync_repo_no_token(db_session: Any, app: Any, mock_github: MagicMock) -
     with app.app_context():
         with pytest.raises(ValueError, match="GITHUB_TOKEN is not set"):
             github_service.sync_repo(repo.id)
+
+
+# ---- sync_repos_from_github ----
+
+
+def _make_mock_gh_repo(
+    *,
+    owner_login: str = "test-org",
+    name: str = "a-repo",
+    default_branch: str = "main",
+) -> MagicMock:
+    """Build a MagicMock that looks like a PyGithub Repository."""
+    repo = MagicMock()
+    repo.owner = MagicMock(login=owner_login)
+    repo.name = name
+    repo.default_branch = default_branch
+    return repo
+
+
+def test_sync_repos_from_github_no_token_returns_empty(
+    app: Any, mock_github: MagicMock
+) -> None:
+    """No GITHUB_TOKEN → return [], no GitHub API calls."""
+    app.config["GITHUB_TOKEN"] = ""
+
+    with app.app_context():
+        result = github_service.sync_repos_from_github("some-owner")
+
+    assert result == []
+    mock_github.get_organization.assert_not_called()
+    mock_github.get_user.assert_not_called()
+
+
+def test_sync_repos_from_github_org_repos_upsert_new(
+    db_session: Any,
+    app_with_token: Any,
+    mock_github: MagicMock,
+) -> None:
+    """get_organization(owner).get_repos() → new Repo rows inserted."""
+    mock_org = MagicMock()
+    mock_org.get_repos.return_value = [
+        _make_mock_gh_repo(owner_login="acme", name="api", default_branch="main"),
+        _make_mock_gh_repo(owner_login="acme", name="web", default_branch="master"),
+    ]
+    mock_github.get_organization.return_value = mock_org
+
+    with app_with_token.app_context():
+        names = github_service.sync_repos_from_github("acme")
+
+    assert names == ["api", "web"]
+    acme_repos = (
+        db_session.query(Repo).filter_by(owner="acme").order_by(Repo.name).all()
+    )
+    assert len(acme_repos) == 2
+    assert acme_repos[0].name == "api" and acme_repos[0].default_branch == "main"
+    assert acme_repos[1].name == "web" and acme_repos[1].default_branch == "master"
+    mock_github.get_organization.assert_called_once_with("acme")
+    mock_github.get_user.assert_not_called()
+
+
+def test_sync_repos_from_github_existing_repo_updates_default_branch(
+    db_session: Any,
+    app_with_token: Any,
+    mock_github: MagicMock,
+) -> None:
+    """When (owner, name) exists → update default_branch only, no duplicate row."""
+    # Use a unique owner so we don't clash with other tests or org_repos_upsert_new
+    owner_name = "acme-update-test"
+    repo_name = "only-repo"
+    mock_org = MagicMock()
+    mock_org.get_repos.return_value = [
+        _make_mock_gh_repo(
+            owner_login=owner_name,
+            name=repo_name,
+            default_branch="master",
+        ),
+    ]
+    mock_github.get_organization.return_value = mock_org
+
+    with app_with_token.app_context():
+        existing = Repo(
+            owner=owner_name,
+            name=repo_name,
+            default_branch="main",
+        )
+        db_session.add(existing)
+        db_session.commit()
+        existing_id = existing.id
+        names = github_service.sync_repos_from_github(owner_name)
+
+    assert names == [repo_name]
+    db_session.expire_all()
+    repos = db_session.query(Repo).filter_by(owner=owner_name, name=repo_name).all()
+    assert len(repos) == 1
+    assert repos[0].default_branch == "master"
+    assert repos[0].id == existing_id
+
+
+def test_sync_repos_from_github_unknown_org_falls_back_to_user(
+    db_session: Any,
+    app_with_token: Any,
+    mock_github: MagicMock,
+) -> None:
+    """UnknownObjectException on get_organization → get_user(owner).get_repos()."""
+    from github import UnknownObjectException
+
+    mock_github.get_organization.side_effect = UnknownObjectException(404, {})
+    mock_user = MagicMock()
+    mock_user.get_repos.return_value = [
+        _make_mock_gh_repo(owner_login="jane", name="my-repo", default_branch="main"),
+    ]
+    mock_github.get_user.return_value = mock_user
+
+    with app_with_token.app_context():
+        names = github_service.sync_repos_from_github("jane")
+
+    assert names == ["my-repo"]
+    mock_github.get_organization.assert_called_once_with("jane")
+    mock_github.get_user.assert_called_once_with("jane")
+    repos = db_session.query(Repo).filter_by(owner="jane", name="my-repo").all()
+    assert len(repos) == 1
+    assert repos[0].default_branch == "main"
