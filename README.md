@@ -9,6 +9,7 @@ A lightweight visual board for prioritising and coordinating pull request releas
 - **Board** (`/`) — Shows open PRs for the selected repo (dropdown) with title (link), author, and approved / not-approved badge. PRs can be added to, removed from, and reordered in a release queue via drag-and-drop. A "Sync now" button fetches the latest state from GitHub; the last sync timestamp is shown next to the button.
 - **Release queue** — Approved PRs can be queued for release. Items are ordered by drag-and-drop (position 1 = next to release). Each queued PR can carry a free-text note. Closed or merged PRs are automatically removed from the queue on the next sync.
 - **Activity log** (`/activity`) — Chronological log of all queue events: `added`, `removed`, `moved`, `note_updated`, and `sync_removed` (auto-removed by background sync).
+- **Dark mode** — A toggle in the nav bar switches between light and dark theme. The choice is stored in `localStorage` and, on first visit, follows the OS preference.
 - **Background auto-sync** — APScheduler runs a sync automatically every `SYNC_INTERVAL_MINUTES` minutes (when `GITHUB_TOKEN` is set). No manual action required for the board to stay up-to-date.
 - **Sync cleanup** — After each sync, any queued PR that is no longer open on GitHub is removed from the queue and a `sync_removed` event is written to the activity log.
 

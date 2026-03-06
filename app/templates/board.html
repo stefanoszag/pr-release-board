@@ -3,10 +3,10 @@
 {% block content %}
 <div id="board-container" class="space-y-6" data-current-repo-id="{{ selected_repo_id }}">
   {# Controls bar: repo dropdown, Sync now, last sync #}
-  <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap items-center gap-4">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap items-center gap-4">
     <select
       id="repo-select"
-      class="border border-gray-300 rounded-md px-3 py-2 text-gray-800 font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      class="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       onchange="window.location.href='/?repo_id=' + this.value"
     >
       {% for r in repos %}
@@ -18,11 +18,11 @@
     <button
       type="button"
       id="sync-btn"
-      class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      class="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       Sync now
     </button>
-    <span class="text-sm text-gray-500" id="last-sync-label">
+    <span class="text-sm text-gray-500 dark:text-gray-400" id="last-sync-label">
       {% if last_sync %}
         Last sync: {{ last_sync.strftime('%Y-%m-%d %H:%M UTC') }}
       {% else %}
@@ -32,62 +32,62 @@
   </div>
 
   {# Section 1 — Queued PRs #}
-  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-    <h2 class="px-4 py-3 bg-gray-50 border-b border-gray-200 font-medium text-gray-800">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <h2 class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-800 dark:text-gray-100">
       Queued
-      <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+      <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
         {{ queued_prs|length }}
       </span>
     </h2>
     {% if queued_prs %}
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-800">
           <tr>
             <th scope="col" class="w-8 px-2 py-3"></th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Position</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">PR</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Author</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Note</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"></th>
           </tr>
         </thead>
-        <tbody id="queue-tbody" class="bg-white divide-y divide-gray-200">
+        <tbody id="queue-tbody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
           {% for pr in queued_prs %}
           <tr data-pr-number="{{ pr.pr_number }}">
             <td class="px-2 py-3">
-              <span class="drag-handle cursor-move text-gray-400 select-none">⠿</span>
+              <span class="drag-handle cursor-move text-gray-400 dark:text-gray-500 select-none">⠿</span>
             </td>
-            <td class="px-4 py-3 text-gray-700">{{ pr.position }}</td>
+            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ pr.position }}</td>
             <td class="px-4 py-3">
-              <a href="{{ pr.url or '#' }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">
+              <a href="{{ pr.url or '#' }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">
                 #{{ pr.pr_number }} {{ pr.title or '(no title)' }}
               </a>
             </td>
-            <td class="px-4 py-3 text-gray-700">{{ pr.author or '—' }}</td>
+            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ pr.author or '—' }}</td>
             <td class="px-4 py-3">
               {% if pr.approved %}
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800">Approved</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">Approved</span>
               {% else %}
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">Not approved</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">Not approved</span>
               {% endif %}
             </td>
             <td class="px-4 py-3">
               <div class="flex items-center gap-2">
                 <input
                   type="text"
-                  class="queue-note-input border border-gray-300 rounded px-2 py-1 text-sm w-48"
+                  class="queue-note-input border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm w-48 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
                   value="{{ pr.note or '' }}"
                   placeholder="Add a note…"
                   data-pr-number="{{ pr.pr_number }}"
                 />
-                <button type="button" class="queue-note-save px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded border border-gray-300">
+                <button type="button" class="queue-note-save px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200">
                   Save note
                 </button>
               </div>
             </td>
             <td class="px-4 py-3">
-              <button type="button" class="queue-remove px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-200" data-pr-number="{{ pr.pr_number }}">
+              <button type="button" class="queue-remove px-2 py-1 text-xs bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-800 dark:text-red-200 rounded border border-red-200 dark:border-red-800" data-pr-number="{{ pr.pr_number }}">
                 Remove
               </button>
             </td>
@@ -96,44 +96,44 @@
         </tbody>
       </table>
     {% else %}
-      <div class="px-4 py-8 text-center text-gray-600">
+      <div class="px-4 py-8 text-center text-gray-600 dark:text-gray-400">
         No PRs queued yet.
       </div>
     {% endif %}
   </div>
 
   {# Section 2 — Ready to release (approved, not in queue) #}
-  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-    <h2 class="px-4 py-3 bg-gray-50 border-b border-gray-200 font-medium text-gray-800">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <h2 class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-800 dark:text-gray-100">
       Ready to release
-      <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+      <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
         {{ ready_prs|length }}
       </span>
     </h2>
     {% if ready_prs %}
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-800">
           <tr>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">PR</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Author</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"></th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
           {% for pr in ready_prs %}
           <tr>
             <td class="px-4 py-3">
-              <a href="{{ pr.url or '#' }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">
+              <a href="{{ pr.url or '#' }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">
                 #{{ pr.number }} {{ pr.title or '(no title)' }}
               </a>
             </td>
-            <td class="px-4 py-3 text-gray-700">{{ pr.author or '—' }}</td>
+            <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ pr.author or '—' }}</td>
             <td class="px-4 py-3">
-              <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 text-green-800">Approved</span>
+              <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">Approved</span>
             </td>
             <td class="px-4 py-3">
-              <button type="button" class="queue-add px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 rounded border border-blue-200" data-pr-number="{{ pr.number }}">
+              <button type="button" class="queue-add px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-800 dark:text-blue-200 rounded border border-blue-200 dark:border-blue-700" data-pr-number="{{ pr.number }}">
                 Add to queue
               </button>
             </td>
@@ -142,48 +142,48 @@
         </tbody>
       </table>
     {% else %}
-      <div class="px-4 py-8 text-center text-gray-600">
+      <div class="px-4 py-8 text-center text-gray-600 dark:text-gray-400">
         No approved PRs waiting.
       </div>
     {% endif %}
   </div>
 
   {# Section 3 — Other PRs (not approved, not in queue), collapsed by default #}
-  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-    <h2 class="px-4 py-3 bg-gray-50 border-b border-gray-200 font-medium text-gray-800">
-      <button type="button" id="other-prs-toggle" class="text-left w-full flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <h2 class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-800 dark:text-gray-100">
+      <button type="button" id="other-prs-toggle" class="text-left w-full flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500 rounded text-gray-800 dark:text-gray-100">
         <span id="other-prs-toggle-label">Show other PRs ({{ other_prs|length }})</span>
-        <span id="other-prs-chevron" class="text-gray-500">▼</span>
+        <span id="other-prs-chevron" class="text-gray-500 dark:text-gray-400">▼</span>
       </button>
     </h2>
     <div id="other-prs-section" class="hidden">
       {% if other_prs %}
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-800">
             <tr>
-              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR</th>
-              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
-              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">PR</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Author</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {% for pr in other_prs %}
             <tr>
               <td class="px-4 py-3">
-                <a href="{{ pr.url or '#' }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">
+                <a href="{{ pr.url or '#' }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">
                   #{{ pr.number }} {{ pr.title or '(no title)' }}
                 </a>
               </td>
-              <td class="px-4 py-3 text-gray-700">{{ pr.author or '—' }}</td>
+              <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ pr.author or '—' }}</td>
               <td class="px-4 py-3">
-                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-800">Not approved</span>
+                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">Not approved</span>
               </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       {% else %}
-        <div class="px-4 py-8 text-center text-gray-600">
+        <div class="px-4 py-8 text-center text-gray-600 dark:text-gray-400">
           No other open PRs.
         </div>
       {% endif %}
