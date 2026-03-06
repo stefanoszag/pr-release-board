@@ -1,5 +1,6 @@
 """Tests for queue_service: add, remove, reorder, update_note, cleanup, get_queue."""
 
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -13,8 +14,9 @@ from app.services import queue_service
 
 
 def make_repo(db_session: Any) -> Repo:
-    """Insert a Repo row and return it."""
-    repo = Repo(owner="test-org", name="test-repo", default_branch="main")
+    """Insert a Repo row with unique (owner, name) and return it."""
+    unique_name = f"test-repo-{uuid.uuid4().hex[:8]}"
+    repo = Repo(owner="test-org", name=unique_name, default_branch="main")
     db_session.add(repo)
     db_session.flush()
     return repo

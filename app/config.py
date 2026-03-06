@@ -19,7 +19,6 @@ class Config:
     # GitHub
     GITHUB_TOKEN: str = os.environ.get("GITHUB_TOKEN", "")
     GITHUB_OWNER: str = os.environ.get("GITHUB_OWNER", "")
-    GITHUB_REPO: str = os.environ.get("GITHUB_REPO", "")
     DEFAULT_BRANCH: str = os.environ.get("DEFAULT_BRANCH", "main")
 
     # Database

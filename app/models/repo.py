@@ -18,6 +18,8 @@ class Repo(db.Model):
 
     __tablename__ = "repos"
 
+    __table_args__ = (db.UniqueConstraint("owner", "name", name="uq_repos_owner_name"),)
+
     id = db.Column(db.Integer, primary_key=True)
     owner = db.Column(db.Text, nullable=False)
     name = db.Column(db.Text, nullable=False)

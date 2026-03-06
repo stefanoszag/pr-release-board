@@ -7,6 +7,8 @@ from flask import Blueprint, current_app, jsonify, request
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
 from app.models.queue_item import QueueItem
+from app.models.repo import Repo
+from app.routes._helpers import resolve_repo
 from app.services.github_service import sync_repo
 from app.services.queue_service import (
     add_to_queue,
@@ -25,22 +27,47 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@api_bp.route("/repos")
+def list_repos() -> tuple[list, int]:
+    """
+    Return all tracked repos as JSON (id, owner, name, default_branch).
+
+    Returns:
+        200 with list of repo dicts; empty list when no repos.
+    """
+    repos = db.session.query(Repo).order_by(Repo.id).all()
+    out = [
+        {
+            "id": r.id,
+            "owner": r.owner,
+            "name": r.name,
+            "default_branch": r.default_branch,
+        }
+        for r in repos
+    ]
+    return jsonify(out), 200
+
+
 @api_bp.route("/last-sync")
 def last_sync() -> tuple[dict, int]:
     """
-    Return the most recent sync timestamp for the board (repo_id=1).
+    Return the most recent sync timestamp for the board.
 
+    Query param: repo_id (optional; defaults to first repo).
     Used by the board page to refresh the "Last sync" label when background
     sync runs, without a full page reload.
 
     Returns:
-        200 with {"last_sync": "ISO8601" | null}.
+        200 with {"last_sync": "ISO8601" | null}. 404 if repo not found.
     """
-    repo_id = 1
+    repo_id = request.args.get("repo_id", type=int)
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        return jsonify({"error": "Repo not found"}), err
     open_prs = (
         db.session.query(PullRequestCache)
         .filter(
-            PullRequestCache.repo_id == repo_id,
+            PullRequestCache.repo_id == repo.id,
             PullRequestCache.is_open.is_(True),
         )
         .all()
@@ -60,21 +87,24 @@ def list_prs() -> tuple[list, int]:
     """
     Return open cached PRs as JSON.
 
-    Optional query params:
-      approved: "true" or "false" to filter by approval status.
-      in_queue: "true" = only PRs in repo 1's queue; "false" = only PRs not in queue.
+    Query params: repo_id (optional; defaults to first repo).
+    Optional: approved, in_queue (true/false) to filter.
 
     Returns:
-      200 with list of PR objects: number, title, url, author, base_branch,
-      approved, synced_at (ISO 8601).
+      200 with list of PR objects. 404 if repo not found.
     """
     start = time.perf_counter()
-    repo_id = 1
+    repo_id = request.args.get("repo_id", type=int)
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        return jsonify({"error": "Repo not found"}), err
+
     approved_param = request.args.get("approved", "").lower()
     in_queue_param = request.args.get("in_queue", "").lower()
 
     query = db.session.query(PullRequestCache).filter(
-        PullRequestCache.is_open.is_(True)
+        PullRequestCache.repo_id == repo.id,
+        PullRequestCache.is_open.is_(True),
     )
     if approved_param == "true":
         query = query.filter(PullRequestCache.approved.is_(True))
@@ -83,18 +113,16 @@ def list_prs() -> tuple[list, int]:
 
     if in_queue_param == "true":
         queue_pr_numbers = db.session.query(QueueItem.pr_number).filter(
-            QueueItem.repo_id == repo_id
+            QueueItem.repo_id == repo.id
         )
         query = query.filter(
-            PullRequestCache.repo_id == repo_id,
             PullRequestCache.number.in_(queue_pr_numbers),
         )
     elif in_queue_param == "false":
         queue_pr_numbers = db.session.query(QueueItem.pr_number).filter(
-            QueueItem.repo_id == repo_id
+            QueueItem.repo_id == repo.id
         )
         query = query.filter(
-            PullRequestCache.repo_id == repo_id,
             PullRequestCache.number.notin_(queue_pr_numbers),
         )
 
@@ -136,15 +164,17 @@ def list_prs() -> tuple[list, int]:
 @api_bp.route("/queue")
 def queue_list() -> tuple[list, int]:
     """
-    Return the queue for repo_id=1 with PR metadata.
+    Return the queue for the given repo with PR metadata.
 
-    Returns:
-        200 with list of queue item dicts (position, pr_number, note, title,
-        url, author, approved, synced_at).
+    Query param: repo_id (optional; defaults to first repo).
+    Returns 404 if repo not found.
     """
     start = time.perf_counter()
-    repo_id = 1
-    items = get_queue(repo_id=repo_id)
+    repo_id = request.args.get("repo_id", type=int)
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        return jsonify({"error": "Repo not found"}), err
+    items = get_queue(repo_id=repo.id)
     elapsed_ms = (time.perf_counter() - start) * 1000
     current_app.logger.info(
         "GET /api/queue: count=%s, elapsed_ms=%.0f", len(items), elapsed_ms
@@ -155,15 +185,22 @@ def queue_list() -> tuple[list, int]:
 @api_bp.route("/queue/add", methods=["POST"])
 def queue_add() -> tuple[dict, int]:
     """
-    Add a PR to the queue for repo_id=1.
-
-    Body: {"pr_number": int, "note": "optional string"} (JSON).
-
-    Returns:
-        201 with the new queue item dict.
-        400 if PR not open, not approved, or already in queue.
+    Add a PR to the queue. Body: repo_id (required), pr_number, note (optional).
+    Returns 201 with new queue item; 400 if invalid; 404 if repo not found.
     """
     data = request.get_json(silent=True) or {}
+    repo_id = data.get("repo_id")
+    if repo_id is None:
+        return jsonify({"error": "repo_id is required"}), 400
+    try:
+        repo_id = int(repo_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "repo_id must be an integer"}), 400
+
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        return jsonify({"error": "Repo not found"}), err
+
     pr_number = data.get("pr_number")
     if pr_number is None:
         return jsonify({"error": "pr_number is required"}), 400
@@ -175,14 +212,13 @@ def queue_add() -> tuple[dict, int]:
     if not isinstance(note, str):
         note = str(note)
 
-    repo_id = 1
     try:
-        add_to_queue(repo_id=repo_id, pr_number=pr_number, note=note)
+        add_to_queue(repo_id=repo.id, pr_number=pr_number, note=note)
     except ValueError as e:
         current_app.logger.warning("POST /api/queue/add failed: %s", e)
         return jsonify({"error": str(e)}), 400
 
-    items = get_queue(repo_id=repo_id)
+    items = get_queue(repo_id=repo.id)
     added = next((q for q in items if q["pr_number"] == pr_number), None)
     if not added:
         return jsonify({"error": "Queue item not found after add"}), 500
@@ -197,15 +233,22 @@ def queue_add() -> tuple[dict, int]:
 @api_bp.route("/queue/remove", methods=["POST"])
 def queue_remove() -> tuple[dict, int]:
     """
-    Remove a PR from the queue for repo_id=1.
-
-    Body: {"pr_number": int} (JSON).
-
-    Returns:
-        200 with {"removed": true}.
-        404 if PR not in queue.
+    Remove a PR from the queue. Body: repo_id (required), pr_number.
+    Returns 200 with {"removed": true}; 404 if repo or PR not in queue.
     """
     data = request.get_json(silent=True) or {}
+    repo_id = data.get("repo_id")
+    if repo_id is None:
+        return jsonify({"error": "repo_id is required"}), 400
+    try:
+        repo_id = int(repo_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "repo_id must be an integer"}), 400
+
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        return jsonify({"error": "Repo not found"}), err
+
     pr_number = data.get("pr_number")
     if pr_number is None:
         return jsonify({"error": "pr_number is required"}), 400
@@ -214,9 +257,8 @@ def queue_remove() -> tuple[dict, int]:
     except (TypeError, ValueError):
         return jsonify({"error": "pr_number must be an integer"}), 400
 
-    repo_id = 1
     try:
-        remove_from_queue(repo_id=repo_id, pr_number=pr_number)
+        remove_from_queue(repo_id=repo.id, pr_number=pr_number)
     except ValueError as e:
         current_app.logger.warning("POST /api/queue/remove failed: %s", e)
         return jsonify({"error": str(e)}), 404
@@ -228,15 +270,22 @@ def queue_remove() -> tuple[dict, int]:
 @api_bp.route("/queue/note", methods=["POST"])
 def queue_note() -> tuple[dict, int]:
     """
-    Update the note for a queued PR (repo_id=1).
-
-    Body: {"pr_number": int, "note": "..."} (JSON).
-
-    Returns:
-        200 with updated queue item dict.
-        404 if PR not in queue.
+    Update the note for a queued PR. Body: repo_id (required), pr_number, note.
+    Returns 200 with updated queue item; 404 if repo or PR not in queue.
     """
     data = request.get_json(silent=True) or {}
+    repo_id = data.get("repo_id")
+    if repo_id is None:
+        return jsonify({"error": "repo_id is required"}), 400
+    try:
+        repo_id = int(repo_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "repo_id must be an integer"}), 400
+
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        return jsonify({"error": "Repo not found"}), err
+
     pr_number = data.get("pr_number")
     if pr_number is None:
         return jsonify({"error": "pr_number is required"}), 400
@@ -248,14 +297,13 @@ def queue_note() -> tuple[dict, int]:
     if not isinstance(note, str):
         note = str(note)
 
-    repo_id = 1
     try:
-        update_note(repo_id=repo_id, pr_number=pr_number, note=note)
+        update_note(repo_id=repo.id, pr_number=pr_number, note=note)
     except ValueError as e:
         current_app.logger.warning("POST /api/queue/note failed: %s", e)
         return jsonify({"error": str(e)}), 404
 
-    items = get_queue(repo_id=repo_id)
+    items = get_queue(repo_id=repo.id)
     updated = next((q for q in items if q["pr_number"] == pr_number), None)
     if not updated:
         return jsonify({"error": "Queue item not found after update"}), 500
@@ -268,16 +316,23 @@ def queue_note() -> tuple[dict, int]:
 @api_bp.route("/queue/reorder", methods=["POST"])
 def queue_reorder() -> tuple[dict, int]:
     """
-    Reorder the queue for repo_id=1 to match the given PR number list.
-
-    Body: {"ordered_pr_numbers": [123, 456, ...]} (JSON).
-
-    Returns:
-        200 with {"reordered": true}.
-        400 if body is invalid or ordered list does not match current queue.
+    Reorder the queue. Body: repo_id (required), ordered_pr_numbers (list).
+    Returns 200 with {"reordered": true}; 400 if invalid; 404 if repo not found.
     """
     start = time.perf_counter()
     data = request.get_json(silent=True) or {}
+    repo_id = data.get("repo_id")
+    if repo_id is None:
+        return jsonify({"error": "repo_id is required"}), 400
+    try:
+        repo_id = int(repo_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "repo_id must be an integer"}), 400
+
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        return jsonify({"error": "Repo not found"}), err
+
     ordered_pr_numbers = data.get("ordered_pr_numbers")
     if ordered_pr_numbers is None:
         return jsonify({"error": "ordered_pr_numbers is required"}), 400
@@ -286,9 +341,8 @@ def queue_reorder() -> tuple[dict, int]:
     if not all(isinstance(x, int) for x in ordered_pr_numbers):
         return jsonify({"error": "ordered_pr_numbers must contain only integers"}), 400
 
-    repo_id = 1
     try:
-        reorder_queue(repo_id=repo_id, ordered_pr_numbers=ordered_pr_numbers)
+        reorder_queue(repo_id=repo.id, ordered_pr_numbers=ordered_pr_numbers)
     except ValueError as e:
         current_app.logger.warning("POST /api/queue/reorder failed: %s", e)
         return jsonify({"error": str(e)}), 400
@@ -305,32 +359,34 @@ def queue_reorder() -> tuple[dict, int]:
 @api_bp.route("/sync", methods=["POST"])
 def sync() -> tuple[dict, int]:
     """
-    Sync open PRs from GitHub into the cache for the configured repo (repo_id=1).
+    Sync open PRs from GitHub into the cache for the given repo.
 
-    Returns:
-        200 with {"updated": N, "repo": "..."} on success.
-        400 if GITHUB_TOKEN, GITHUB_OWNER, or GITHUB_REPO are not set.
-        404 if the repo row is not found.
+    Query param: repo_id (optional; defaults to first repo).
+    Returns 200 with {"updated": N, "repo": "..."}; 400 if no token;
+    404 if repo not found.
     """
+    repo_id = request.args.get("repo_id", type=int)
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        return jsonify({"error": "Repo not found"}), err
+
     token = current_app.config.get("GITHUB_TOKEN", "")
-    owner = current_app.config.get("GITHUB_OWNER", "")
-    repo_name = current_app.config.get("GITHUB_REPO", "")
-    if not token or not owner or not repo_name:
+    if not token:
         current_app.logger.warning(
-            "POST /api/sync rejected: GitHub credentials not configured"
+            "POST /api/sync rejected: GITHUB_TOKEN not configured"
         )
         return (
             jsonify(
                 {
-                    "error": "GitHub credentials not configured",
-                    "required": ["GITHUB_TOKEN", "GITHUB_OWNER", "GITHUB_REPO"],
+                    "error": "GITHUB_TOKEN is not set",
+                    "required": ["GITHUB_TOKEN"],
                 }
             ),
             400,
         )
     try:
         start = time.perf_counter()
-        result = sync_repo(repo_id=1)
+        result = sync_repo(repo_id=repo.id)
         elapsed_ms = (time.perf_counter() - start) * 1000
         current_app.logger.info(
             "POST /api/sync completed: repo=%s, prs_updated=%s, elapsed_ms=%.0f",

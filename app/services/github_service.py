@@ -3,12 +3,58 @@
 from datetime import datetime, timezone
 
 from flask import current_app
-from github import Github
+from github import Github, UnknownObjectException
 
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
 from app.models.repo import Repo
 from app.services.queue_service import cleanup_closed_prs
+
+
+def sync_repos_from_github(owner: str) -> list[str]:
+    """
+    Fetch all repos for owner from GitHub, upsert into repos table.
+
+    Tries organization first, then falls back to user on UnknownObjectException.
+    For each repo: if (owner, name) exists, update default_branch; otherwise insert.
+    No-op if GITHUB_TOKEN is not set.
+
+    Args:
+        owner: GitHub owner (org or user login) to list repos for.
+
+    Returns:
+        List of repo names that were upserted, for logging.
+    """
+    token = current_app.config.get("GITHUB_TOKEN", "")
+    if not token:
+        return []
+
+    gh = Github(token)
+    try:
+        repos = gh.get_organization(owner).get_repos()
+    except UnknownObjectException:
+        repos = gh.get_user(owner).get_repos()
+
+    names: list[str] = []
+    for gh_repo in repos:
+        repo_owner = gh_repo.owner.login
+        name = gh_repo.name
+        default_branch = getattr(gh_repo, "default_branch", None) or "main"
+        existing = db.session.query(Repo).filter_by(owner=repo_owner, name=name).first()
+        if existing:
+            existing.default_branch = default_branch
+        else:
+            db.session.add(
+                Repo(
+                    owner=repo_owner,
+                    name=name,
+                    default_branch=default_branch,
+                )
+            )
+        names.append(name)
+
+    db.session.commit()
+    return names
 
 
 def sync_repo(repo_id: int) -> dict:

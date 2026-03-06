@@ -8,7 +8,9 @@ from app.extensions import db
 from app.models.repo import Repo
 
 
-def test_get_board_200_contains_board_and_queued(client: Any) -> None:
+def test_get_board_200_contains_board_and_queued(
+    client: Any, repo_1: Repo  # noqa: ARG001
+) -> None:
     """GET / → 200, response contains 'board' and 'Queued' (template rendered)."""
     r = client.get("/")
     assert r.status_code == 200
@@ -17,12 +19,46 @@ def test_get_board_200_contains_board_and_queued(client: Any) -> None:
     assert "Queued" in text
 
 
-def test_get_activity_200_contains_activity(client: Any) -> None:
+def test_get_board_200_with_repo_id_param(
+    client: Any, repo_1: Repo  # noqa: ARG001
+) -> None:
+    """GET /?repo_id=1 → 200 (explicit repo_id selects that repo)."""
+    r = client.get(f"/?repo_id={repo_1.id}")
+    assert r.status_code == 200
+    text = r.get_data(as_text=True)
+    assert "board" in text.lower()
+
+
+def test_get_board_invalid_repo_id_404(client: Any, repo_1: Repo) -> None:
+    """GET /?repo_id=99999 when repo not in DB → 404."""
+    r = client.get("/?repo_id=99999")
+    assert r.status_code == 404
+
+
+def test_get_activity_200_contains_activity(
+    client: Any, repo_1: Repo  # noqa: ARG001
+) -> None:
     """GET /activity → 200, response contains 'Activity'."""
     r = client.get("/activity")
     assert r.status_code == 200
     text = r.get_data(as_text=True)
     assert "Activity" in text
+
+
+def test_get_activity_200_with_repo_id_param(
+    client: Any, repo_1: Repo  # noqa: ARG001
+) -> None:
+    """GET /activity?repo_id=1 → 200 (explicit repo_id selects that repo)."""
+    r = client.get(f"/activity?repo_id={repo_1.id}")
+    assert r.status_code == 200
+    text = r.get_data(as_text=True)
+    assert "Activity" in text
+
+
+def test_get_activity_invalid_repo_id_404(client: Any, repo_1: Repo) -> None:
+    """GET /activity?repo_id=99999 when repo not in DB → 404."""
+    r = client.get("/activity?repo_id=99999")
+    assert r.status_code == 404
 
 
 def test_get_board_no_repo_200(

@@ -24,13 +24,13 @@ services:
       db:
         condition: service_healthy
     environment:
-      FLASK_APP: app
-      DATABASE_URL: postgresql://prboard:prboard@db:5432/prboard
-      GITHUB_TOKEN: ${GITHUB_TOKEN}
-      GITHUB_OWNER: ${GITHUB_OWNER}
-      GITHUB_REPO: ${GITHUB_REPO}
-      DEFAULT_BRANCH: main
-      SYNC_INTERVAL_MINUTES: "5"
+      - FLASK_APP=app
+      # Use list form so host DATABASE_URL (e.g. from tests) cannot override
+      - DATABASE_URL=postgresql://prboard:prboard@db:5432/prboard
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_OWNER=${GITHUB_OWNER}
+      - DEFAULT_BRANCH=main
+      - SYNC_INTERVAL_MINUTES=5
     ports:
       - "5001:5001"
 

@@ -1,11 +1,12 @@
 """HTML page routes."""
 
-from flask import Blueprint, render_template
+from flask import Blueprint, abort, render_template, request
 
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
 from app.models.queue_event import QueueEvent
 from app.models.repo import Repo
+from app.routes._helpers import resolve_repo
 from app.services.queue_service import get_queue
 
 pages_bp = Blueprint("pages", __name__)
@@ -17,9 +18,15 @@ def board() -> str:
     Render the release queue board with three sections: Queued, Ready, Other.
 
     Passes queued_prs (from get_queue), ready_prs (approved, not in queue),
-    other_prs (not approved, not in queue), plus repo and last_sync.
+    other_prs (not approved, not in queue), plus repo, repos, selected_repo_id,
+    and last_sync. repo_id from query (defaults to first repo); 404 if invalid.
     """
-    repo = db.session.get(Repo, 1)
+    repo_id = request.args.get("repo_id", type=int)
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        abort(err)
+    all_repos = db.session.query(Repo).order_by(Repo.id).all()
+
     queued_prs = []
     ready_prs = []
     other_prs = []
@@ -69,6 +76,8 @@ def board() -> str:
     return render_template(
         "board.html",
         repo=repo,
+        repos=all_repos,
+        selected_repo_id=repo.id,
         queued_prs=queued_prs,
         ready_prs=ready_prs,
         other_prs=other_prs,
@@ -81,9 +90,15 @@ def activity() -> str:
     """
     Render the activity log: last 50 queue events with PR metadata.
 
+    repo_id from query (defaults to first repo); 404 if invalid.
     QueueEvent is left-outer-joined to PullRequestCache for title/url.
     """
-    repo = db.session.get(Repo, 1)
+    repo_id = request.args.get("repo_id", type=int)
+    repo, err = resolve_repo(repo_id)
+    if err is not None:
+        abort(err)
+    all_repos = db.session.query(Repo).order_by(Repo.id).all()
+
     events: list[dict] = []
 
     if repo:
@@ -113,4 +128,10 @@ def activity() -> str:
                 }
             )
 
-    return render_template("activity.html", events=events, repo=repo)
+    return render_template(
+        "activity.html",
+        events=events,
+        repo=repo,
+        repos=all_repos,
+        selected_repo_id=repo.id,
+    )

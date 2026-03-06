@@ -16,19 +16,24 @@ def _background_sync(flask_app: Flask) -> None:
     """
     Run a single sync cycle inside a pushed application context.
 
-    Intended to be called by APScheduler on an interval. Errors are caught
-    and logged so a failed sync never crashes the scheduler.
+    Iterates over all Repo rows and syncs each; one failure is logged
+    and does not stop the others. Intended to be called by APScheduler.
 
     Args:
         flask_app: The Flask application instance to push context for.
     """
     with flask_app.app_context():
-        try:
-            from app.services.github_service import sync_repo
+        from app.models.repo import Repo
+        from app.services.github_service import sync_repo
 
-            sync_repo(repo_id=1)
-        except Exception as e:
-            flask_app.logger.error("Background sync failed: %s", e)
+        repos = db.session.query(Repo).all()
+        for repo in repos:
+            try:
+                sync_repo(repo_id=repo.id)
+            except Exception as e:
+                flask_app.logger.error(
+                    "Background sync failed for %s: %s", repo.name, e
+                )
 
 
 def create_app() -> Flask:
@@ -56,9 +61,12 @@ def create_app() -> Flask:
     db.init_app(app)
 
     with app.app_context():
-        from app.models.repo import seed_repo
+        if app.config.get("GITHUB_TOKEN") and app.config.get("GITHUB_OWNER"):
+            from app.services.github_service import sync_repos_from_github
 
-        seed_repo()
+            names = sync_repos_from_github(owner=app.config["GITHUB_OWNER"])
+            if names:
+                app.logger.info("Synced %s repo(s) from GitHub: %s", len(names), names)
 
     scheduler.start()
 
