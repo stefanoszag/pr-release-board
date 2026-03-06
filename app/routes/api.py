@@ -7,6 +7,7 @@ from flask import Blueprint, current_app, jsonify, request
 from app.extensions import db
 from app.models.pull_request import PullRequestCache
 from app.models.queue_item import QueueItem
+from app.models.repo import Repo
 from app.services.github_service import sync_repo
 from app.services.queue_service import (
     add_to_queue,
@@ -23,6 +24,27 @@ api_bp = Blueprint("api", __name__)
 def health() -> dict:
     """Health check for smoke tests and load balancers."""
     return {"status": "ok"}
+
+
+@api_bp.route("/repos")
+def list_repos() -> tuple[list, int]:
+    """
+    Return all tracked repos as JSON (id, owner, name, default_branch).
+
+    Returns:
+        200 with list of repo dicts; empty list when no repos.
+    """
+    repos = db.session.query(Repo).order_by(Repo.id).all()
+    out = [
+        {
+            "id": r.id,
+            "owner": r.owner,
+            "name": r.name,
+            "default_branch": r.default_branch,
+        }
+        for r in repos
+    ]
+    return jsonify(out), 200
 
 
 @api_bp.route("/last-sync")
