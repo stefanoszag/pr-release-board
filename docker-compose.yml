@@ -28,7 +28,6 @@ services:
       DATABASE_URL: postgresql://prboard:prboard@db:5432/prboard
       GITHUB_TOKEN: ${GITHUB_TOKEN}
       GITHUB_OWNER: ${GITHUB_OWNER}
-      GITHUB_REPO: ${GITHUB_REPO}
       DEFAULT_BRANCH: main
       SYNC_INTERVAL_MINUTES: "5"
     ports:

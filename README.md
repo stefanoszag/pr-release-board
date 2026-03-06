@@ -6,13 +6,13 @@ A lightweight visual board for prioritising and coordinating pull request releas
 
 ## What it does
 
-- **Board** (`/`) — Shows open PRs for the configured repo with title (link), author, and approved / not-approved badge. PRs can be added to, removed from, and reordered in a release queue via drag-and-drop. A "Sync now" button fetches the latest state from GitHub; the last sync timestamp is shown next to the button.
+- **Board** (`/`) — Shows open PRs for the selected repo (dropdown) with title (link), author, and approved / not-approved badge. PRs can be added to, removed from, and reordered in a release queue via drag-and-drop. A "Sync now" button fetches the latest state from GitHub; the last sync timestamp is shown next to the button.
 - **Release queue** — Approved PRs can be queued for release. Items are ordered by drag-and-drop (position 1 = next to release). Each queued PR can carry a free-text note. Closed or merged PRs are automatically removed from the queue on the next sync.
 - **Activity log** (`/activity`) — Chronological log of all queue events: `added`, `removed`, `moved`, `note_updated`, and `sync_removed` (auto-removed by background sync).
 - **Background auto-sync** — APScheduler runs a sync automatically every `SYNC_INTERVAL_MINUTES` minutes (when `GITHUB_TOKEN` is set). No manual action required for the board to stay up-to-date.
 - **Sync cleanup** — After each sync, any queued PR that is no longer open on GitHub is removed from the queue and a `sync_removed` event is written to the activity log.
 
-Migrations run automatically when the app starts; the repo row is seeded from env if the table is empty.
+Migrations run automatically when the app starts. Repos are synced from GitHub on startup (all repositories for `GITHUB_OWNER`); use the board dropdown to switch between repos.
 
 ## Pages
 
@@ -41,9 +41,8 @@ Migrations run automatically when the app starts; the repo row is seeded from en
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `GITHUB_TOKEN` | Yes (for sync) | — | GitHub personal access token |
-| `GITHUB_OWNER` | Yes (for sync) | — | GitHub organisation or user name |
-| `GITHUB_REPO` | Yes (for sync) | — | Repository name (without owner) |
-| `DEFAULT_BRANCH` | No | `main` | Base branch to filter open PRs against |
+| `GITHUB_OWNER` | Yes (for sync) | — | GitHub organisation or user name. All repos for this owner are discovered automatically on startup. |
+| `DEFAULT_BRANCH` | No | `main` | Base branch to filter open PRs against (per repo) |
 | `DATABASE_URL` | No | `sqlite:///app.db` | SQLAlchemy-compatible database URL |
 | `SYNC_INTERVAL_MINUTES` | No | `5` | How often the background sync runs (minutes) |
 
@@ -89,13 +88,12 @@ To use a different test DB (e.g. another port), set `TEST_DATABASE_URL` when run
 
 ## Run with Docker Compose (app + Postgres) — recommended
 
-Starts the app and a Postgres 16 database. The app waits for the DB to be ready, runs migrations, then starts. One repo is seeded from env if the `repos` table is empty. Background sync starts automatically.
+Starts the app and a Postgres 16 database. The app waits for the DB to be ready, runs migrations, then syncs all repos for `GITHUB_OWNER` from GitHub. Background sync runs for every tracked repo automatically.
 
 ```bash
 # Option A: set env in the shell
 export GITHUB_TOKEN=ghp_xxx
 export GITHUB_OWNER=your-org
-export GITHUB_REPO=your-repo
 docker-compose up --build
 
 # Option B: use a .env file in the project root (add .env to .gitignore)
@@ -111,7 +109,6 @@ docker build -t pr-release-board .
 docker run -p 5001:5001 \
   -e GITHUB_TOKEN=ghp_xxx \
   -e GITHUB_OWNER=your-org \
-  -e GITHUB_REPO=your-repo \
   --name prb pr-release-board
 ```
 
