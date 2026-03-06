@@ -56,9 +56,12 @@ def create_app() -> Flask:
     db.init_app(app)
 
     with app.app_context():
-        from app.models.repo import seed_repo
+        if app.config.get("GITHUB_TOKEN") and app.config.get("GITHUB_OWNER"):
+            from app.services.github_service import sync_repos_from_github
 
-        seed_repo()
+            names = sync_repos_from_github(owner=app.config["GITHUB_OWNER"])
+            if names:
+                app.logger.info("Synced %s repo(s) from GitHub: %s", len(names), names)
 
     scheduler.start()
 
