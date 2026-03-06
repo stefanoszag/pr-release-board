@@ -4,39 +4,10 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest  # type: ignore[import-untyped]
-from sqlalchemy import text
 
 from app.models.repo import Repo
 from app.services import queue_service
 from tests.services.test_queue_service import make_pr
-
-
-@pytest.fixture
-def repo_1(db_session: Any) -> Repo:
-    """
-    Ensure repo with id=1 exists (API routes use repo_id=1).
-    Create it if missing so tests can seed PRs/queue for it.
-    """
-    repo = db_session.get(Repo, 1)
-    if repo is not None:
-        return repo
-    repo = Repo(
-        id=1,
-        owner="test-org",
-        name="test-repo",
-        default_branch="main",
-    )
-    db_session.add(repo)
-    db_session.flush()
-    # Keep sequence in sync for other tests that insert repos without id
-    db_session.execute(
-        text(
-            "SELECT setval(pg_get_serial_sequence('repos', 'id'), "
-            "(SELECT COALESCE(MAX(id), 1) FROM repos))"
-        )
-    )
-    db_session.commit()
-    return repo
 
 
 # ---- GET /api/health ----
@@ -116,7 +87,7 @@ def test_post_queue_add_approved_pr_201(
     db_session.commit()
     r = client.post(
         "/api/queue/add",
-        json={"pr_number": 501, "note": "ready"},
+        json={"repo_id": repo_1.id, "pr_number": 501, "note": "ready"},
         content_type="application/json",
     )
     assert r.status_code == 201
@@ -126,11 +97,11 @@ def test_post_queue_add_approved_pr_201(
     assert data.get("note") == "ready"
 
 
-def test_post_queue_add_missing_pr_number_400(client: Any) -> None:
+def test_post_queue_add_missing_pr_number_400(client: Any, repo_1: Repo) -> None:
     """POST /api/queue/add without pr_number → 400."""
     r = client.post(
         "/api/queue/add",
-        json={},
+        json={"repo_id": repo_1.id},
         content_type="application/json",
     )
     assert r.status_code == 400
@@ -145,7 +116,7 @@ def test_post_queue_add_not_approved_400(
     db_session.commit()
     r = client.post(
         "/api/queue/add",
-        json={"pr_number": 502},
+        json={"repo_id": repo_1.id, "pr_number": 502},
         content_type="application/json",
     )
     assert r.status_code == 400
@@ -163,7 +134,7 @@ def test_post_queue_remove_exists_200(
     db_session.commit()
     r = client.post(
         "/api/queue/remove",
-        json={"pr_number": 601},
+        json={"repo_id": repo_1.id, "pr_number": 601},
         content_type="application/json",
     )
     assert r.status_code == 200
@@ -178,7 +149,7 @@ def test_post_queue_remove_not_in_queue_404(
     db_session.commit()
     r = client.post(
         "/api/queue/remove",
-        json={"pr_number": 602},
+        json={"repo_id": repo_1.id, "pr_number": 602},
         content_type="application/json",
     )
     assert r.status_code == 404
@@ -193,7 +164,7 @@ def test_post_queue_note_exists_200(client: Any, db_session: Any, repo_1: Repo) 
     db_session.commit()
     r = client.post(
         "/api/queue/note",
-        json={"pr_number": 701, "note": "new note"},
+        json={"repo_id": repo_1.id, "pr_number": 701, "note": "new note"},
         content_type="application/json",
     )
     assert r.status_code == 200
@@ -219,7 +190,7 @@ def test_post_queue_reorder_valid_200(
     ordered = [802, 801] + [n for n in all_nums if n not in (801, 802)]
     r = client.post(
         "/api/queue/reorder",
-        json={"ordered_pr_numbers": ordered},
+        json={"repo_id": repo_1.id, "ordered_pr_numbers": ordered},
         content_type="application/json",
     )
     assert r.status_code == 200
@@ -236,7 +207,7 @@ def test_post_queue_reorder_set_mismatch_400(
     db_session.commit()
     r = client.post(
         "/api/queue/reorder",
-        json={"ordered_pr_numbers": [901, 999]},
+        json={"repo_id": repo_1.id, "ordered_pr_numbers": [901, 999]},
         content_type="application/json",
     )
     assert r.status_code == 400

@@ -81,7 +81,7 @@ def test_sync_repo_upsert_new_pr(
         result = github_service.sync_repo(repo.id)
 
     assert result["updated"] == 1
-    assert result["repo"] == "test-repo"
+    assert result["repo"] == repo.name
     cached = (
         db_session.query(PullRequestCache).filter_by(repo_id=repo.id, number=42).first()
     )

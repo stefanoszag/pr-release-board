@@ -8,7 +8,9 @@ from app.extensions import db
 from app.models.repo import Repo
 
 
-def test_get_board_200_contains_board_and_queued(client: Any) -> None:
+def test_get_board_200_contains_board_and_queued(
+    client: Any, repo_1: Repo  # noqa: ARG001
+) -> None:
     """GET / → 200, response contains 'board' and 'Queued' (template rendered)."""
     r = client.get("/")
     assert r.status_code == 200
@@ -17,7 +19,9 @@ def test_get_board_200_contains_board_and_queued(client: Any) -> None:
     assert "Queued" in text
 
 
-def test_get_activity_200_contains_activity(client: Any) -> None:
+def test_get_activity_200_contains_activity(
+    client: Any, repo_1: Repo  # noqa: ARG001
+) -> None:
     """GET /activity → 200, response contains 'Activity'."""
     r = client.get("/activity")
     assert r.status_code == 200

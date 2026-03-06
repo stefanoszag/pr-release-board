@@ -10,9 +10,11 @@ _TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:5432/test_pr_board"
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", _TEST_DATABASE_URL)
 
 import pytest  # type: ignore[import-untyped]  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 
 from app import create_app  # noqa: E402
 from app.extensions import db  # noqa: E402
+from app.models.repo import Repo  # noqa: E402
 
 
 def _ensure_test_database_url() -> None:
@@ -92,3 +94,31 @@ def db_session(app):
 def client(app, db_session):
     """Flask test client, tied to the same rolled-back session."""
     return app.test_client()
+
+
+@pytest.fixture(scope="function")
+def repo_1(db_session):
+    """
+    Ensure repo with id=1 exists (for API/page routes that use repo_id=1 or first repo).
+    Create it if missing so tests can seed PRs/queue for it.
+    """
+    repo = db_session.get(Repo, 1)
+    if repo is not None:
+        return repo
+    repo = Repo(
+        id=1,
+        owner="test-org",
+        name="test-repo",
+        default_branch="main",
+    )
+    db_session.add(repo)
+    db_session.flush()
+    # Keep sequence in sync for other tests that insert repos without id
+    db_session.execute(
+        text(
+            "SELECT setval(pg_get_serial_sequence('repos', 'id'), "
+            "(SELECT COALESCE(MAX(id), 1) FROM repos))"
+        )
+    )
+    db_session.commit()
+    return repo
